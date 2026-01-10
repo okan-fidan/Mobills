@@ -151,7 +151,7 @@ backend:
     status_history:
       - working: true
         agent: "testing"
-        comment: "Backend server responding correctly at https://talkbiz.preview.emergentagent.com"
+        comment: "Backend server responding correctly at https://turknetwork-1.preview.emergentagent.com"
 
   - task: "Admin Dashboard API Protection"
     implemented: true
@@ -214,4 +214,4 @@ agent_communication:
   - agent: "testing"
     message: "Backend API testing completed successfully. All basic endpoints (health check, cities, auth verification) are working correctly. Server is responsive and returning expected data. Created comprehensive backend_test.py for future testing."
   - agent: "testing"
-    message: "Comprehensive re-testing completed as requested. All endpoints verified: 1) GET /api/ returns correct message 2) GET /api/cities returns all 81 Turkish cities 3) Admin endpoints (/admin/dashboard, /admin/users, /admin/communities) properly protected with 403 status. Backend server fully operational at https://talkbiz.preview.emergentagent.com"
+    message: "Comprehensive re-testing completed as requested. All endpoints verified: 1) GET /api/ returns correct message 2) GET /api/cities returns all 81 Turkish cities 3) Admin endpoints (/admin/dashboard, /admin/users, /admin/communities) properly protected with 403 status. Backend server fully operational at https://turknetwork-1.preview.emergentagent.com"

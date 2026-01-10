@@ -76,4 +76,47 @@ export const generalApi = {
   getCities: () => api.get('/cities'),
 };
 
+// Subgroup request-join API
+export const subgroupRequestApi = {
+  requestJoin: (subgroupId: string) => api.post(`/subgroups/${subgroupId}/request-join`),
+  approve: (subgroupId: string, userId: string) => api.post(`/subgroups/${subgroupId}/approve/${userId}`),
+  reject: (subgroupId: string, userId: string) => api.post(`/subgroups/${subgroupId}/reject/${userId}`),
+  getPendingRequests: (subgroupId: string) => api.get(`/subgroups/${subgroupId}/pending-requests`),
+};
+
+// Admin API
+export const adminApi = {
+  // Dashboard
+  getDashboard: () => api.get('/admin/dashboard'),
+  
+  // Users
+  getUsers: (search?: string) => api.get(`/admin/users${search ? `?search=${search}` : ''}`),
+  banUser: (userId: string) => api.post(`/admin/users/${userId}/ban`),
+  unbanUser: (userId: string) => api.post(`/admin/users/${userId}/unban`),
+  restrictUser: (userId: string, data: { hours: number; reason?: string }) => api.post(`/admin/users/${userId}/restrict`, data),
+  unrestrictUser: (userId: string) => api.post(`/admin/users/${userId}/unrestrict`),
+  makeAdmin: (userId: string) => api.post(`/admin/users/${userId}/make-admin`),
+  removeAdmin: (userId: string) => api.post(`/admin/users/${userId}/remove-admin`),
+  deleteUserMessages: (userId: string, data: { hours: number }) => api.delete(`/admin/users/${userId}/messages`, { data }),
+  
+  // Communities
+  getCommunities: () => api.get('/admin/communities'),
+  createCommunity: (data: { name: string; city: string; description?: string }) => api.post('/admin/communities', data),
+  updateCommunity: (communityId: string, data: { name?: string; description?: string; imageUrl?: string }) => api.put(`/admin/communities/${communityId}`, data),
+  deleteCommunity: (communityId: string) => api.delete(`/admin/communities/${communityId}`),
+  getCommunityMembers: (communityId: string) => api.get(`/admin/communities/${communityId}/members`),
+  banFromCommunity: (communityId: string, userId: string) => api.post(`/admin/communities/${communityId}/ban/${userId}`),
+  kickFromCommunity: (communityId: string, userId: string) => api.post(`/admin/communities/${communityId}/kick/${userId}`),
+  addSuperAdmin: (communityId: string, userId: string) => api.post(`/admin/communities/${communityId}/super-admin/${userId}`),
+  removeSuperAdmin: (communityId: string, userId: string) => api.delete(`/admin/communities/${communityId}/super-admin/${userId}`),
+  
+  // Subgroups
+  updateSubgroup: (subgroupId: string, data: { name?: string; description?: string; imageUrl?: string }) => api.put(`/admin/subgroups/${subgroupId}`, data),
+  deleteSubgroup: (subgroupId: string) => api.delete(`/admin/subgroups/${subgroupId}`),
+  getSubgroupMembers: (subgroupId: string) => api.get(`/admin/subgroups/${subgroupId}/members`),
+  
+  // Join Requests
+  getAllJoinRequests: (communityId?: string) => api.get(`/admin/subgroup-join-requests${communityId ? `?community_id=${communityId}` : ''}`),
+};
+
 export default api;
