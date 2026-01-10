@@ -173,6 +173,7 @@ const styles = StyleSheet.create({
   },
   slide: {
     width,
+    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
