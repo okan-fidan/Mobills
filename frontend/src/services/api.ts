@@ -43,6 +43,8 @@ export const subgroupApi = {
   leave: (id: string) => api.post(`/subgroups/${id}/leave`),
   getMessages: (id: string) => api.get(`/subgroups/${id}/messages`),
   sendMessage: (id: string, data: any) => api.post(`/subgroups/${id}/messages`, data),
+  deleteMessage: (groupId: string, messageId: string) => api.delete(`/subgroups/${groupId}/messages/${messageId}`),
+  editMessage: (groupId: string, messageId: string, content: string) => api.put(`/subgroups/${groupId}/messages/${messageId}`, { content }),
 };
 
 export const messageApi = {
