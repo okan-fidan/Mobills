@@ -355,7 +355,15 @@ const styles = StyleSheet.create({
   serviceUser: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 6,
+  },
+  userAvatar: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#1f2937',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   serviceUserName: {
     color: '#9ca3af',
