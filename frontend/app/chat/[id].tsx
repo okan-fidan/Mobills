@@ -102,12 +102,36 @@ export default function PrivateChatScreen() {
     if (!inputText.trim() || !otherUserId) return;
 
     setSending(true);
+    if (!user) return;
+
     try {
-      const response = await messageApi.sendPrivate({
-        receiverId: otherUserId,
-        content: inputText.trim(),
+      const userIds = [user.uid, otherUserId].sort();
+      const chatId = `${userIds[0]}_${userIds[1]}`;
+
+      const conversationRef = doc(db, 'conversations', chatId);
+      // Konuşma dokümanı yoksa temel bilgileriyle oluştur
+      await setDoc(
+        conversationRef,
+        {
+          type: 'dm',
+          participantIds: userIds,
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
+
+      const messagesRef = collection(conversationRef, 'messages');
+      await addDoc(messagesRef, {
+        senderId: user.uid,
+        senderName: `${userProfile?.firstName || ''} ${userProfile?.lastName || ''}`.trim(),
+        senderProfileImage: userProfile?.profileImageUrl || null,
+        text: inputText.trim(),
+        createdAt: serverTimestamp(),
+        deliveredTo: [],
+        readBy: [user.uid],
+        status: 'sent',
       });
-      setMessages([...messages, response.data]);
+
       setInputText('');
       setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
     } catch (error) {
