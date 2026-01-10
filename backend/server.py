@@ -1072,6 +1072,46 @@ async def delete_service(service_id: str, current_user: dict = Depends(get_curre
     await db.services.delete_one({"id": service_id})
     return {"message": "Hizmet silindi"}
 
+@api_router.get("/my-services")
+async def get_my_services(current_user: dict = Depends(get_current_user)):
+    """Kullanıcının kendi hizmetlerini döner"""
+    services = await db.services.find({"userId": current_user['uid']}).sort("timestamp", -1).to_list(100)
+    for service in services:
+        if '_id' in service:
+            del service['_id']
+    return services
+
+# ==================== NOTIFICATIONS ====================
+
+@api_router.get("/notifications")
+async def get_notifications(current_user: dict = Depends(get_current_user)):
+    """Kullanıcının bildirimlerini döner"""
+    notifications = await db.notifications.find({"userId": current_user['uid']}).sort("timestamp", -1).to_list(50)
+    for notification in notifications:
+        if '_id' in notification:
+            del notification['_id']
+    return notifications
+
+@api_router.put("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, current_user: dict = Depends(get_current_user)):
+    """Bildirimi okundu olarak işaretler"""
+    result = await db.notifications.update_one(
+        {"id": notification_id, "userId": current_user['uid']},
+        {"$set": {"isRead": True}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Bildirim bulunamadı")
+    return {"message": "Bildirim okundu olarak işaretlendi"}
+
+@api_router.put("/notifications/read-all")
+async def mark_all_notifications_read(current_user: dict = Depends(get_current_user)):
+    """Tüm bildirimleri okundu olarak işaretler"""
+    await db.notifications.update_many(
+        {"userId": current_user['uid'], "isRead": False},
+        {"$set": {"isRead": True}}
+    )
+    return {"message": "Tüm bildirimler okundu olarak işaretlendi"}
+
 # ==================== ANNOUNCEMENTS ====================
 
 @api_router.get("/communities/{community_id}/announcements")
