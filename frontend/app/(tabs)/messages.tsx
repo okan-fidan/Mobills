@@ -22,8 +22,9 @@ import { tr } from 'date-fns/locale';
 type TabType = 'all' | 'communities' | 'groups' | 'private';
 
 interface Chat {
-  id: string visibleContentType: 'dm';
-  odierUserId: string;
+  id: string;
+  type: 'dm';
+  otherUserId: string;
   otherUserName: string;
   otherUserImage?: string;
   lastMessage: string;
