@@ -188,6 +188,11 @@ async def ensure_admin_in_all_communities():
             {"uid": admin_user['uid']},
             {"$set": {"isAdmin": True}}
         )
+        # Admin'i tüm alt gruplara da admin ve üye olarak ekle
+        await db.subgroups.update_many(
+            {},
+            {"$addToSet": {"groupAdmins": admin_user['uid'], "members": admin_user['uid']}}
+        )
 
 # Routes
 @api_router.get("/")
