@@ -176,7 +176,7 @@ index 707ce25..a437097 100644
 -+    status_history:
 -+      - working: true
 -+        agent: "testing"
--+        comment: "Backend server responding correctly at https://github-mobile-app-1.preview.emergentagent.com"
+-+        comment: "Backend server responding correctly at https://talkbiz.preview.emergentagent.com"
 -+
 -+frontend:
 -+  # No frontend testing performed as per instructions
@@ -206,7 +206,7 @@ index f16ed48..0da979e 100644
 +++ b/test_result.md
 @@ -153,6 +153,42 @@ backend:
          agent: "testing"
-         comment: "Backend server responding correctly at https://github-mobile-app-1.preview.emergentagent.com"
+         comment: "Backend server responding correctly at https://talkbiz.preview.emergentagent.com"
  
 +  - task: "Admin Dashboard API Protection"
 +    implemented: true
@@ -264,5 +264,5 @@ index f16ed48..0da979e 100644
 \ No newline at end of file
 +    message: "Backend API testing completed successfully. All basic endpoints (health check, cities, auth verification) are working correctly. Server is responsive and returning expected data. Created comprehensive backend_test.py for future testing."
 +  - agent: "testing"
-+    message: "Comprehensive re-testing completed as requested. All endpoints verified: 1) GET /api/ returns correct message 2) GET /api/cities returns all 81 Turkish cities 3) Admin endpoints (/admin/dashboard, /admin/users, /admin/communities) properly protected with 403 status. Backend server fully operational at https://github-mobile-app-1.preview.emergentagent.com"
++    message: "Comprehensive re-testing completed as requested. All endpoints verified: 1) GET /api/ returns correct message 2) GET /api/cities returns all 81 Turkish cities 3) Admin endpoints (/admin/dashboard, /admin/users, /admin/communities) properly protected with 403 status. Backend server fully operational at https://talkbiz.preview.emergentagent.com"
 \ No newline at end of file

@@ -10,7 +10,7 @@ import sys
 from typing import Dict, Any
 
 # Backend URL from frontend environment
-BACKEND_URL = "https://github-mobile-app-1.preview.emergentagent.com"
+BACKEND_URL = "https://talkbiz.preview.emergentagent.com"
 API_BASE = f"{BACKEND_URL}/api"
 
 class NetworkSolutionAPITester:
