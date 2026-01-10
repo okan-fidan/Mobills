@@ -99,12 +99,33 @@ export default function ProfileScreen() {
           </View>
 
           {userProfile?.isAdmin && (
-            <View style={styles.adminBadge}>
+            <TouchableOpacity 
+              style={styles.adminBadge}
+              onPress={() => router.push('/admin')}
+            >
               <Ionicons name="shield-checkmark" size={16} color="#10b981" />
-              <Text style={styles.adminText}>Yönetici</Text>
-            </View>
+              <Text style={styles.adminText}>Yönetici Paneli</Text>
+              <Ionicons name="chevron-forward" size={14} color="#10b981" />
+            </TouchableOpacity>
           )}
         </View>
+
+        {/* Admin Panel Button */}
+        {userProfile?.isAdmin && (
+          <TouchableOpacity 
+            style={styles.adminPanelButton}
+            onPress={() => router.push('/admin')}
+          >
+            <View style={styles.adminPanelIcon}>
+              <Ionicons name="settings" size={24} color="#6366f1" />
+            </View>
+            <View style={styles.adminPanelInfo}>
+              <Text style={styles.adminPanelTitle}>Yönetici Paneli</Text>
+              <Text style={styles.adminPanelSubtitle}>Üye, topluluk ve içerik yönetimi</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={22} color="#6b7280" />
+          </TouchableOpacity>
+        )}
 
         {/* Stats */}
         <View style={styles.statsContainer}>
