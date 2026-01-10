@@ -161,8 +161,12 @@ export default function RegisterProfileScreen() {
               />
             </View>
 
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.button, 
+                loading && styles.buttonDisabled,
+                pressed && { opacity: 0.8 }
+              ]}
               onPress={handleSubmit}
               disabled={loading}
             >
@@ -171,7 +175,7 @@ export default function RegisterProfileScreen() {
               ) : (
                 <Text style={styles.buttonText}>Tamamla</Text>
               )}
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
