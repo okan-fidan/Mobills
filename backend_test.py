@@ -207,6 +207,7 @@ class NetworkSolutionAPITester:
         self.test_health_check()
         self.test_cities_endpoint()
         self.test_communities_endpoint_auth_required()
+        self.test_admin_endpoints_protection()
         
         return self.get_summary()
 
