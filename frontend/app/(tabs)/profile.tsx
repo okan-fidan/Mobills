@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,15 +7,45 @@ import {
   ScrollView,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../../src/contexts/AuthContext';
+import api from '../../src/services/api';
 
 export default function ProfileScreen() {
   const { userProfile, signOut } = useAuth();
   const router = useRouter();
+  const [stats, setStats] = useState({ posts: 0, connections: 0, communities: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadStats();
+  }, []);
+
+  const loadStats = async () => {
+    try {
+      const [postsRes, communitiesRes] = await Promise.all([
+        api.get('/my-posts'),
+        api.get('/communities'),
+      ]);
+      
+      const myCommunities = communitiesRes.data.filter((c: any) => c.isMember);
+      
+      setStats({
+        posts: postsRes.data?.length || 0,
+        connections: 0,
+        communities: myCommunities.length,
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSignOut = () => {
     Alert.alert(
@@ -35,79 +65,160 @@ export default function ProfileScreen() {
     );
   };
 
+  const quickActions = [
+    {
+      icon: 'create-outline',
+      label: 'Gönderi Paylaş',
+      color: '#6366f1',
+      onPress: () => router.push('/post/create'),
+    },
+    {
+      icon: 'briefcase-outline',
+      label: 'Hizmet Ekle',
+      color: '#10b981',
+      onPress: () => router.push('/service/create'),
+    },
+    {
+      icon: 'people-outline',
+      label: 'Topluluklar',
+      color: '#f59e0b',
+      onPress: () => router.push('/(tabs)/communities'),
+    },
+  ];
+
   const menuItems = [
     {
       icon: 'person-outline',
       label: 'Profili Düzenle',
+      subtitle: 'Bilgilerinizi güncelleyin',
       onPress: () => router.push('/profile/edit'),
+      color: '#6366f1',
     },
     {
       icon: 'document-text-outline',
       label: 'Gönderilerim',
+      subtitle: `${stats.posts} gönderi`,
       onPress: () => router.push('/profile/my-posts'),
+      color: '#3b82f6',
     },
     {
       icon: 'briefcase-outline',
       label: 'Hizmetlerim',
+      subtitle: 'Sunduğunuz hizmetler',
       onPress: () => router.push('/profile/my-services'),
+      color: '#10b981',
     },
     {
       icon: 'notifications-outline',
-      label: 'Bildirim Ayarları',
+      label: 'Bildirimler',
+      subtitle: 'Bildirim ayarları',
       onPress: () => {},
+      color: '#f59e0b',
     },
     {
       icon: 'shield-checkmark-outline',
-      label: 'Gizlilik',
+      label: 'Gizlilik ve Güvenlik',
+      subtitle: 'Hesap güvenliği',
       onPress: () => {},
+      color: '#8b5cf6',
     },
     {
       icon: 'help-circle-outline',
-      label: 'Yardım',
+      label: 'Yardım ve Destek',
+      subtitle: 'SSS ve iletişim',
       onPress: () => {},
+      color: '#ec4899',
     },
   ];
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <View style={styles.avatar}>
-            {userProfile?.profileImageUrl ? (
-              <Image source={{ uri: userProfile.profileImageUrl }} style={styles.avatarImage} />
-            ) : (
-              <Ionicons name="person" size={48} color="#9ca3af" />
-            )}
-          </View>
-          <Text style={styles.name}>
-            {userProfile?.firstName} {userProfile?.lastName}
-          </Text>
-          <Text style={styles.email}>{userProfile?.email}</Text>
-          
-          <View style={styles.infoRow}>
-            <View style={styles.infoItem}>
-              <Ionicons name="location-outline" size={18} color="#6366f1" />
-              <Text style={styles.infoText}>{userProfile?.city || 'Belirtilmemiş'}</Text>
-            </View>
-            {userProfile?.occupation && (
-              <View style={styles.infoItem}>
-                <Ionicons name="briefcase-outline" size={18} color="#6366f1" />
-                <Text style={styles.infoText}>{userProfile.occupation}</Text>
+        {/* Header with Gradient */}
+        <LinearGradient
+          colors={['#1e1b4b', '#312e81', '#4338ca']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerGradient}
+        >
+          <View style={styles.headerContent}>
+            {/* Avatar */}
+            <View style={styles.avatarContainer}>
+              <View style={styles.avatar}>
+                {userProfile?.profileImageUrl ? (
+                  <Image source={{ uri: userProfile.profileImageUrl }} style={styles.avatarImage} />
+                ) : (
+                  <Text style={styles.avatarText}>
+                    {userProfile?.firstName?.[0]}{userProfile?.lastName?.[0]}
+                  </Text>
+                )}
               </View>
+              <TouchableOpacity style={styles.editAvatarButton}>
+                <Ionicons name="camera" size={16} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            {/* User Info */}
+            <Text style={styles.name}>
+              {userProfile?.firstName} {userProfile?.lastName}
+            </Text>
+            <Text style={styles.email}>{userProfile?.email}</Text>
+            
+            <View style={styles.badgeRow}>
+              {userProfile?.city && (
+                <View style={styles.badge}>
+                  <Ionicons name="location" size={14} color="#a5b4fc" />
+                  <Text style={styles.badgeText}>{userProfile.city}</Text>
+                </View>
+              )}
+              {userProfile?.occupation && (
+                <View style={styles.badge}>
+                  <Ionicons name="briefcase" size={14} color="#a5b4fc" />
+                  <Text style={styles.badgeText}>{userProfile.occupation}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Admin Badge */}
+            {userProfile?.isAdmin && (
+              <TouchableOpacity 
+                style={styles.adminBadge}
+                onPress={() => router.push('/admin')}
+              >
+                <View style={styles.adminBadgeInner}>
+                  <Ionicons name="shield-checkmark" size={18} color="#fbbf24" />
+                  <Text style={styles.adminBadgeText}>Yönetici</Text>
+                </View>
+              </TouchableOpacity>
             )}
           </View>
+        </LinearGradient>
 
-          {userProfile?.isAdmin && (
-            <TouchableOpacity 
-              style={styles.adminBadge}
-              onPress={() => router.push('/admin')}
-            >
-              <Ionicons name="shield-checkmark" size={16} color="#10b981" />
-              <Text style={styles.adminText}>Yönetici Paneli</Text>
-              <Ionicons name="chevron-forward" size={14} color="#10b981" />
-            </TouchableOpacity>
-          )}
+        {/* Stats Cards */}
+        <View style={styles.statsContainer}>
+          <TouchableOpacity style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: 'rgba(99, 102, 241, 0.1)' }]}>
+              <Ionicons name="people" size={24} color="#6366f1" />
+            </View>
+            <Text style={styles.statNumber}>{stats.communities}</Text>
+            <Text style={styles.statLabel}>Topluluk</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+              <Ionicons name="document-text" size={24} color="#10b981" />
+            </View>
+            <Text style={styles.statNumber}>{stats.posts}</Text>
+            <Text style={styles.statLabel}>Gönderi</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.statCard}>
+            <View style={[styles.statIconContainer, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+              <Ionicons name="link" size={24} color="#f59e0b" />
+            </View>
+            <Text style={styles.statNumber}>{stats.connections}</Text>
+            <Text style={styles.statLabel}>Bağlantı</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Admin Panel Button */}
@@ -116,46 +227,58 @@ export default function ProfileScreen() {
             style={styles.adminPanelButton}
             onPress={() => router.push('/admin')}
           >
-            <View style={styles.adminPanelIcon}>
-              <Ionicons name="settings" size={24} color="#6366f1" />
-            </View>
-            <View style={styles.adminPanelInfo}>
-              <Text style={styles.adminPanelTitle}>Yönetici Paneli</Text>
-              <Text style={styles.adminPanelSubtitle}>Üye, topluluk ve içerik yönetimi</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={22} color="#6b7280" />
+            <LinearGradient
+              colors={['#4338ca', '#6366f1']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.adminPanelGradient}
+            >
+              <View style={styles.adminPanelIcon}>
+                <Ionicons name="settings" size={28} color="#fff" />
+              </View>
+              <View style={styles.adminPanelInfo}>
+                <Text style={styles.adminPanelTitle}>Yönetici Paneli</Text>
+                <Text style={styles.adminPanelSubtitle}>Üye, topluluk ve içerik yönetimi</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#fff" />
+            </LinearGradient>
           </TouchableOpacity>
         )}
 
-        {/* Stats */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{userProfile?.communities?.length || 0}</Text>
-            <Text style={styles.statLabel}>Topluluk</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Gönderi</Text>
-          </View>
-          <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Bağlantı</Text>
+        {/* Quick Actions */}
+        <View style={styles.quickActionsContainer}>
+          <Text style={styles.sectionTitle}>Hızlı İşlemler</Text>
+          <View style={styles.quickActionsRow}>
+            {quickActions.map((action, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.quickActionItem}
+                onPress={action.onPress}
+              >
+                <View style={[styles.quickActionIcon, { backgroundColor: `${action.color}20` }]}>
+                  <Ionicons name={action.icon as any} size={24} color={action.color} />
+                </View>
+                <Text style={styles.quickActionLabel}>{action.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
         {/* Menu */}
         <View style={styles.menuContainer}>
+          <Text style={styles.sectionTitle}>Hesap Ayarları</Text>
           {menuItems.map((item, index) => (
             <TouchableOpacity
               key={index}
               style={styles.menuItem}
               onPress={item.onPress}
             >
-              <View style={styles.menuItemLeft}>
-                <Ionicons name={item.icon as any} size={22} color="#9ca3af" />
+              <View style={[styles.menuItemIcon, { backgroundColor: `${item.color}15` }]}>
+                <Ionicons name={item.icon as any} size={22} color={item.color} />
+              </View>
+              <View style={styles.menuItemContent}>
                 <Text style={styles.menuItemText}>{item.label}</Text>
+                <Text style={styles.menuItemSubtext}>{item.subtitle}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color="#6b7280" />
             </TouchableOpacity>
@@ -168,7 +291,10 @@ export default function ProfileScreen() {
           <Text style={styles.signOutText}>Çıkış Yap</Text>
         </TouchableOpacity>
 
-        <Text style={styles.version}>Versiyon 1.0.0</Text>
+        <View style={styles.footer}>
+          <Text style={styles.version}>Network Solution v1.0.0</Text>
+          <Text style={styles.copyright}>© 2025 Tüm hakları saklıdır</Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -179,111 +305,127 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#0a0a0a',
   },
-  header: {
+  headerGradient: {
+    paddingTop: 20,
+    paddingBottom: 40,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
+  },
+  headerContent: {
     alignItems: 'center',
-    paddingVertical: 24,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    paddingHorizontal: 24,
+  },
+  avatarContainer: {
+    position: 'relative',
+    marginBottom: 16,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    backgroundColor: '#1f2937',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#4338ca',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-    marginBottom: 16,
+    borderWidth: 4,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   avatarImage: {
     width: '100%',
     height: '100%',
   },
+  avatarText: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  editAvatarButton: {
+    position: 'absolute',
+    bottom: 4,
+    right: 4,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#1e1b4b',
+  },
   name: {
-    fontSize: 24,
+    fontSize: 26,
     fontWeight: 'bold',
     color: '#fff',
   },
   email: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#a5b4fc',
     marginTop: 4,
   },
-  infoRow: {
+  badgeRow: {
     flexDirection: 'row',
-    marginTop: 16,
-    gap: 24,
+    marginTop: 12,
+    gap: 12,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
   },
-  infoItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  infoText: {
-    color: '#9ca3af',
-    fontSize: 14,
-  },
-  adminBadge: {
+  badge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
-    marginTop: 16,
     gap: 6,
   },
-  adminText: {
-    color: '#10b981',
+  badgeText: {
+    color: '#e0e7ff',
     fontSize: 13,
-    fontWeight: '500',
   },
-  adminPanelButton: {
+  adminBadge: {
+    marginTop: 16,
+  },
+  adminBadgeInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111827',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: 'rgba(251, 191, 36, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#6366f1',
+    borderColor: 'rgba(251, 191, 36, 0.3)',
+    gap: 6,
   },
-  adminPanelIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  adminPanelInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  adminPanelTitle: {
-    color: '#fff',
-    fontSize: 16,
+  adminBadgeText: {
+    color: '#fbbf24',
+    fontSize: 14,
     fontWeight: '600',
-  },
-  adminPanelSubtitle: {
-    color: '#6b7280',
-    fontSize: 13,
-    marginTop: 2,
   },
   statsContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    alignItems: 'center',
-    backgroundColor: '#111827',
     marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    padding: 20,
+    marginTop: -24,
+    gap: 12,
   },
-  statItem: {
+  statCard: {
+    flex: 1,
+    backgroundColor: '#111827',
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  statIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
   },
   statNumber: {
     fontSize: 24,
@@ -291,39 +433,110 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   statLabel: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#9ca3af',
-    marginTop: 4,
+    marginTop: 2,
   },
-  statDivider: {
-    width: 1,
-    height: 40,
-    backgroundColor: '#374151',
+  adminPanelButton: {
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  adminPanelGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  adminPanelIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  adminPanelInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  adminPanelTitle: {
+    color: '#fff',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  adminPanelSubtitle: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  quickActionsContainer: {
+    marginTop: 24,
+    paddingHorizontal: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 12,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  quickActionItem: {
+    flex: 1,
+    backgroundColor: '#111827',
+    borderRadius: 16,
+    padding: 16,
+    alignItems: 'center',
+  },
+  quickActionIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  quickActionLabel: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
+    textAlign: 'center',
   },
   menuContainer: {
-    backgroundColor: '#111827',
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderRadius: 12,
-    overflow: 'hidden',
+    marginTop: 24,
+    paddingHorizontal: 16,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    backgroundColor: '#111827',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 10,
   },
-  menuItemLeft: {
-    flexDirection: 'row',
+  menuItemIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: 12,
+  },
+  menuItemContent: {
+    flex: 1,
+    marginLeft: 14,
   },
   menuItemText: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  menuItemSubtext: {
+    color: '#6b7280',
+    fontSize: 12,
+    marginTop: 2,
   },
   signOutButton: {
     flexDirection: 'row',
@@ -332,20 +545,28 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(239, 68, 68, 0.1)',
     marginHorizontal: 16,
     marginTop: 24,
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.2)',
   },
   signOutText: {
     color: '#ef4444',
     fontSize: 16,
     fontWeight: '600',
   },
+  footer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
   version: {
-    textAlign: 'center',
     color: '#6b7280',
-    fontSize: 12,
-    marginTop: 24,
-    marginBottom: 32,
+    fontSize: 13,
+  },
+  copyright: {
+    color: '#4b5563',
+    fontSize: 11,
+    marginTop: 4,
   },
 });

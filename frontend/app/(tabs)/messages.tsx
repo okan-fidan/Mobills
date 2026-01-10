@@ -12,21 +12,22 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import api from '../../src/services/api';
+import { collection, query, where, orderBy, onSnapshot, getDocs } from 'firebase/firestore';
+import { db } from '../../src/config/firebase';
 import { useAuth } from '../../src/contexts/AuthContext';
+import api from '../../src/services/api';
 import { formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
 
 interface Chat {
   chatId: string;
-  userId: string;
-  userName: string;
-  userProfileImage?: string;
+  odierUserId: string;
+  otherUserName: string;
+  otherUserImage?: string;
   lastMessage: string;
-  lastMessageTime: string;
-  lastMessageType: string;
+  lastMessageTime: Date;
   unreadCount: number;
-  isOnline: boolean;
+  isTyping?: boolean;
 }
 
 interface GroupChat {
@@ -45,19 +46,87 @@ export default function MessagesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'private' | 'groups'>('private');
-  const { userProfile } = useAuth();
+  const [userCache, setUserCache] = useState<Record<string, any>>({});
+  const { userProfile, user } = useAuth();
   const router = useRouter();
 
-  const loadChats = useCallback(async () => {
+  // Firebase'den DM sohbetlerini dinle
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    const conversationsRef = collection(db, 'conversations');
+    const q = query(
+      conversationsRef,
+      where('participantIds', 'array-contains', user.uid),
+      orderBy('updatedAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
+      const chatList: Chat[] = [];
+      
+      for (const docSnap of snapshot.docs) {
+        const data = docSnap.data();
+        if (data.type !== 'dm') continue;
+        
+        const otherUserId = data.participantIds?.find((id: string) => id !== user.uid);
+        if (!otherUserId) continue;
+
+        // Kullanıcı bilgilerini al (cache'den veya API'den)
+        let otherUser = userCache[otherUserId];
+        if (!otherUser) {
+          try {
+            const userRes = await api.get(`/users/${otherUserId}`);
+            otherUser = userRes.data;
+            setUserCache(prev => ({ ...prev, [otherUserId]: otherUser }));
+          } catch (e) {
+            otherUser = { firstName: 'Kullanıcı', lastName: '' };
+          }
+        }
+
+        // Son mesajı al
+        const messagesRef = collection(db, 'conversations', docSnap.id, 'messages');
+        const messagesQuery = query(messagesRef, orderBy('createdAt', 'desc'));
+        const messagesSnap = await getDocs(messagesQuery);
+        
+        let lastMessage = '';
+        let lastMessageTime = data.updatedAt?.toDate() || new Date();
+        let unreadCount = 0;
+        
+        messagesSnap.forEach((msgDoc, index) => {
+          const msgData = msgDoc.data();
+          if (index === 0) {
+            lastMessage = msgData.text || '';
+            lastMessageTime = msgData.createdAt?.toDate() || new Date();
+          }
+          // Okunmamış mesajları say
+          if (msgData.senderId !== user.uid && !msgData.readBy?.includes(user.uid)) {
+            unreadCount++;
+          }
+        });
+
+        chatList.push({
+          chatId: docSnap.id,
+          odierUserId: otherUserId,
+          otherUserName: `${otherUser.firstName || ''} ${otherUser.lastName || ''}`.trim() || 'Kullanıcı',
+          otherUserImage: otherUser.profileImageUrl,
+          lastMessage,
+          lastMessageTime,
+          unreadCount,
+          isTyping: data.typing?.[otherUserId] || false,
+        });
+      }
+
+      setChats(chatList);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  const loadGroupChats = useCallback(async () => {
     try {
-      const [chatsRes, communitiesRes] = await Promise.all([
-        api.get('/chats'),
-        api.get('/communities'),
-      ]);
+      const communitiesRes = await api.get('/communities');
       
-      setChats(chatsRes.data);
-      
-      // Get all subgroups user is member of
       const myGroups: GroupChat[] = [];
       for (const community of communitiesRes.data) {
         if (community.isMember) {
@@ -68,7 +137,7 @@ export default function MessagesScreen() {
               if (sg.isMember) {
                 myGroups.push({
                   id: sg.id,
-                  name: sg.name,
+                  name: sg.name.replace(`${community.name} - `, ''),
                   communityName: community.name,
                   memberCount: sg.memberCount,
                   isMember: true,
@@ -82,26 +151,25 @@ export default function MessagesScreen() {
       }
       setGroupChats(myGroups);
     } catch (error) {
-      console.error('Error loading chats:', error);
+      console.error('Error loading groups:', error);
     } finally {
-      setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    loadChats();
-  }, [loadChats]);
+    loadGroupChats();
+  }, [loadGroupChats]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadChats();
-  }, [loadChats]);
+    loadGroupChats();
+  }, [loadGroupChats]);
 
-  const formatTime = (timestamp: string) => {
-    if (!timestamp) return '';
+  const formatTime = (date: Date) => {
+    if (!date) return '';
     try {
-      return formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: tr });
+      return formatDistanceToNow(date, { addSuffix: true, locale: tr });
     } catch {
       return '';
     }
@@ -110,28 +178,38 @@ export default function MessagesScreen() {
   const renderChat = ({ item }: { item: Chat }) => (
     <TouchableOpacity
       style={styles.chatCard}
-      onPress={() => router.push(`/chat/${item.userId}`)}
+      onPress={() => router.push(`/chat/${item.odierUserId}`)}
     >
       <View style={styles.avatarContainer}>
         <View style={styles.avatar}>
-          {item.userProfileImage ? (
-            <Image source={{ uri: item.userProfileImage }} style={styles.avatarImage} />
+          {item.otherUserImage ? (
+            <Image source={{ uri: item.otherUserImage }} style={styles.avatarImage} />
           ) : (
             <Ionicons name="person" size={24} color="#9ca3af" />
           )}
         </View>
-        {item.isOnline && <View style={styles.onlineIndicator} />}
       </View>
       
       <View style={styles.chatInfo}>
         <View style={styles.chatHeader}>
-          <Text style={styles.chatName}>{item.userName}</Text>
+          <Text style={styles.chatName}>{item.otherUserName}</Text>
           <Text style={styles.chatTime}>{formatTime(item.lastMessageTime)}</Text>
         </View>
         <View style={styles.chatPreview}>
-          <Text style={styles.lastMessage} numberOfLines={1}>
-            {item.lastMessageType === 'image' ? '📷 Fotoğraf' : item.lastMessage}
-          </Text>
+          {item.isTyping ? (
+            <View style={styles.typingContainer}>
+              <Text style={styles.typingText}>yazıyor</Text>
+              <View style={styles.typingDots}>
+                <View style={[styles.typingDot, styles.dot1]} />
+                <View style={[styles.typingDot, styles.dot2]} />
+                <View style={[styles.typingDot, styles.dot3]} />
+              </View>
+            </View>
+          ) : (
+            <Text style={styles.lastMessage} numberOfLines={1}>
+              {item.lastMessage || 'Henüz mesaj yok'}
+            </Text>
+          )}
           {item.unreadCount > 0 && (
             <View style={styles.unreadBadge}>
               <Text style={styles.unreadCount}>
@@ -158,7 +236,7 @@ export default function MessagesScreen() {
           <Text style={styles.chatName}>{item.name}</Text>
         </View>
         <Text style={styles.groupSubtitle}>
-          {item.memberCount} üye
+          {item.communityName} • {item.memberCount} üye
         </Text>
       </View>
       
@@ -198,8 +276,15 @@ export default function MessagesScreen() {
             color={activeTab === 'private' ? '#6366f1' : '#6b7280'} 
           />
           <Text style={[styles.tabText, activeTab === 'private' && styles.activeTabText]}>
-            Özel
+            Özel Mesajlar
           </Text>
+          {chats.filter(c => c.unreadCount > 0).length > 0 && (
+            <View style={styles.tabBadge}>
+              <Text style={styles.tabBadgeText}>
+                {chats.reduce((acc, c) => acc + c.unreadCount, 0)}
+              </Text>
+            </View>
+          )}
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.tab, activeTab === 'groups' && styles.activeTab]}
@@ -227,11 +312,20 @@ export default function MessagesScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="chatbubbles-outline" size={64} color="#374151" />
+              <View style={styles.emptyIconContainer}>
+                <Ionicons name="chatbubbles-outline" size={64} color="#6366f1" />
+              </View>
               <Text style={styles.emptyText}>Henüz mesaj yok</Text>
               <Text style={styles.emptySubtext}>
                 Yeni bir sohbet başlatmak için sağ üstteki butona tıklayın
               </Text>
+              <TouchableOpacity 
+                style={styles.emptyButton}
+                onPress={() => router.push('/chat/new')}
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+                <Text style={styles.emptyButtonText}>Yeni Sohbet</Text>
+              </TouchableOpacity>
             </View>
           }
         />
@@ -246,11 +340,20 @@ export default function MessagesScreen() {
           }
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Ionicons name="people-outline" size={64} color="#374151" />
+              <View style={styles.emptyIconContainer}>
+                <Ionicons name="people-outline" size={64} color="#6366f1" />
+              </View>
               <Text style={styles.emptyText}>Henüz grup yok</Text>
               <Text style={styles.emptySubtext}>
                 Topluluklar sekmesinden gruplara katılabilirsiniz
               </Text>
+              <TouchableOpacity 
+                style={styles.emptyButton}
+                onPress={() => router.push('/(tabs)/communities')}
+              >
+                <Ionicons name="compass" size={20} color="#fff" />
+                <Text style={styles.emptyButtonText}>Toplulukları Keşfet</Text>
+              </TouchableOpacity>
             </View>
           }
         />
@@ -280,20 +383,22 @@ const styles = StyleSheet.create({
     borderBottomColor: '#1f2937',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#fff',
   },
   newChatButton: {
     width: 44,
     height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   tabs: {
     flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingVertical: 12,
     gap: 8,
   },
   tab: {
@@ -307,15 +412,30 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   activeTab: {
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
   },
   tabText: {
     color: '#6b7280',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '500',
   },
   activeTabText: {
     color: '#6366f1',
+  },
+  tabBadge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    minWidth: 20,
+    alignItems: 'center',
+  },
+  tabBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
   },
   listContent: {
     paddingVertical: 8,
@@ -325,7 +445,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#1f2937',
   },
@@ -333,9 +453,9 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#1f2937',
     justifyContent: 'center',
     alignItems: 'center',
@@ -345,28 +465,17 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  onlineIndicator: {
-    position: 'absolute',
-    bottom: 2,
-    right: 2,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#10b981',
-    borderWidth: 2,
-    borderColor: '#0a0a0a',
-  },
   groupIcon: {
-    width: 52,
-    height: 52,
-    borderRadius: 14,
+    width: 56,
+    height: 56,
+    borderRadius: 16,
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   chatInfo: {
     flex: 1,
-    marginLeft: 12,
+    marginLeft: 14,
   },
   chatHeader: {
     flexDirection: 'row',
@@ -398,17 +507,46 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
   },
+  typingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  typingText: {
+    color: '#6366f1',
+    fontSize: 14,
+    fontStyle: 'italic',
+  },
+  typingDots: {
+    flexDirection: 'row',
+    marginLeft: 4,
+  },
+  typingDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#6366f1',
+    marginHorizontal: 1,
+  },
+  dot1: {
+    opacity: 0.4,
+  },
+  dot2: {
+    opacity: 0.7,
+  },
+  dot3: {
+    opacity: 1,
+  },
   unreadBadge: {
     backgroundColor: '#6366f1',
     paddingHorizontal: 8,
-    paddingVertical: 2,
+    paddingVertical: 3,
     borderRadius: 12,
     marginLeft: 8,
   },
   unreadCount: {
     color: '#fff',
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   emptyState: {
     flex: 1,
@@ -417,16 +555,40 @@ const styles = StyleSheet.create({
     paddingVertical: 64,
     paddingHorizontal: 32,
   },
+  emptyIconContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
   emptyText: {
-    color: '#9ca3af',
-    fontSize: 18,
+    color: '#fff',
+    fontSize: 20,
     fontWeight: '600',
-    marginTop: 16,
   },
   emptySubtext: {
     color: '#6b7280',
     fontSize: 14,
     marginTop: 8,
     textAlign: 'center',
+    lineHeight: 20,
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#6366f1',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+    marginTop: 24,
+    gap: 8,
+  },
+  emptyButtonText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
