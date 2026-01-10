@@ -1,338 +1,220 @@
 <analysis>
 
-**original_problem_statement**: The user's goal is to build a Telegram-like mobile application for entrepreneurs, starting from a GitHub project.
+**original_problem_statement**: The user wants to build a Telegram-like mobile application for entrepreneurs.
 
-The initial request was to build out the frontend for the Community and Admin sections. This was expanded with several new feature requests from the user:
-1.  **Advanced Messaging**: Implement a DM list screen, message status indicators (read receipts), and typing... indicators.
-2.  **Admin Permissions**: Make the admin user () an administrator in all community sub-groups.
-3.  **Profile Screen**: Redesign the profile tab to be more visually appealing.
-4.  **UX Enhancements**: Implement a batch of new features:
-    *   Unread message count badges on the tab bar.
-    *   Emoji picker in the chat.
-    *   Photo sending functionality.
-    *   A dedicated user profile page (distinct from the tab).
-    *   A user/content search screen.
-    *   Skeleton loading placeholders for a better UX.
-    *   An initial onboarding flow for new users.
+The initial task was to stabilize the application after a previous agent added a large number of untested features. Following stabilization, the user made several feature requests in sequence:
+1.  **Make Buttons Functional**: Create missing pages and link existing, non-functional buttons on the profile and home screens.
+2.  **Enhance Services & Chat**:
+    *   Display all user-submitted services on a public Services tab.
+    *   Add a Contact button on service listings to initiate a private chat.
+    *   Implement file, photo, and video attachments for both private and group chats.
+3.  **Redesign Messages Tab**: Overhaul the  tab to include sub-tabs for All, My Communities, My Groups, and DMs.
+4.  **Implement Core Chat Features**:
+    *   Add message editing and deletion to group chats.
+    *   Implement a real-time notification system using Firebase listeners.
+5.  **Advanced UX for Communities/Groups**:
+    *   Redesign the Communities tab with advanced search and filtering.
+    *   Add pinned messages, polls, @mentions, and in-message search to group chats.
+    *   Implement moderation tools (spam filter, mute).
+    *   Add a community announcement feature (create/delete/view).
+    *   Show member profiles and their common communities.
 
 **User's preferred language**: Türkçe (Turkish). The next agent MUST respond in Turkish.
 
 **what currently exists?**
-- A full-stack Expo (React Native) and FastAPI/MongoDB application.
-- **Backend ()**:
-    - Includes full admin CRUD APIs for communities and sub-groups.
-    - Contains logic to retroactively make the admin user () an administrator of all sub-groups upon server startup.
-    - The code was recently fixed to resolve syntax errors and remove duplicated blocks.
-- **Frontend**:
-    - **Community & Admin**: The Community Detail screen () and Admin Communities screen () have been implemented to allow users to join sub-groups and for admins to manage communities.
-    - **New Features (Just added, untested)**:
-        - A real-time DM list screen ().
-        - An enhanced Chat screen () with boilerplate for an emoji picker and photo sending.
-        - A redesigned Profile tab () using .
-        - A new Search screen ().
-        - A new Onboarding screen ().
-        - A new Skeleton Loader component ().
-        - The main tab layout () was updated to include badges.
-- **Dependencies**: The agent has installed , , , and  to support the new features.
+The application is a full-stack Expo (React Native) and FastAPI/MongoDB project. In this session, the agent successfully stabilized the app, created numerous new screens, and implemented the backend logic for a wide array of advanced features.
+
+-   **Backend ()**: Heavily modified to include new API endpoints for:
+    -   Fetching all services ().
+    -   Group message editing and deletion ().
+    -   Community announcements (CRUD operations).
+    -   Advanced group features: Muting/kicking users, pinning messages, creating polls.
+-   **Frontend**:
+    -   **Stabilized Screens**: The previously broken , , and  screens are now functional and visually verified (without user data).
+    -   **New Screens**: Placeholder pages were created for , , , , , and . All are confirmed to load.
+    -   **Redesigned Tabs**:
+        -   : Completely overhauled with a new design featuring sub-tabs for different chat types. The loading/empty state issue has been fixed.
+        -   : Redesigned with a sophisticated UI including a search bar and multiple filtering options.
+    -   **Feature Implementation**:
+        -   **Attachments**: The UI and logic for adding attachments (image, file, video) have been added to both private () and group () chat screens.
+        -   **Message Actions**: Group chats now have UI and backend integration for message editing and deletion, triggered by a long-press menu.
+-   **Dependencies**:  and  were added for media handling.
 
 **Last working item**:
--   **Last item agent was working**: The agent was in the middle of a massive feature implementation push, attempting to add seven distinct UX enhancements at once (badges, emoji picker, photo sending, search, etc.). The last action was installing the  package after overwriting 6 different files with new feature code.
+-   **Last item agent was working**: The agent was finalizing the backend and frontend API service () integration for the newly requested advanced group/community features (moderation, announcements, polls, etc.). It encountered and fixed a recurring issue where  was defined twice in . The agent's last actions involved removing the duplicate definition and restarting services to ensure the fix was applied correctly.
 -   **Status**: IN PROGRESS
--   **Agent Testing Done**: N (Critically, none of the newly added features or files have been tested. The services were not even restarted after the final file writes and package installations.)
--   **Which testing method agent to use?**: both. The next agent must first restart the backend and frontend services and check for any immediate build or runtime errors in the logs. Then, it should use the screenshot tool to systematically check each new and modified screen (, , , , ). Backend testing agent might be needed if API calls from new components fail.
+-   **Agent Testing Done**: Y (for the  fix via service restart and screenshot)
+-   **Which testing method agent to use?**: both. The immediate next step is to test the  screen to confirm it loads correctly after the  fix. After that, the frontend agent should be used to implement the UI for the newly added backend features.
 -   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
-  -   **Issue 1**: (P0) Stabilize and debug the large, untested feature batch.
-  -   **Issue 2**: (P1) Implement real typing... indicator logic.
-  -   **Issue 3**: (P2) Implement real message status logic (sent/delivered/read).
+-   **Issue 1**: (P0) Unverified Authentication Flow.
+-   **Issue 2**: (P1) Recurring file modification error.
 
-  **Issues Detail**:
-  -   **Issue 1**: Stabilize and debug the large, untested feature batch.
-     -   **Attempted fixes**: None. The previous agent just dropped the code and installed packages. The current state is highly unstable.
-     -   **Next debug checklist**:
-        1.  Restart the backend service: backend: ERROR (not running)
-backend: ERROR (abnormal termination). Check logs for errors.
-        2.  Restart the frontend service: expo: ERROR (not running)
-expo: started. Check logs for compilation errors, especially related to the new packages (, , ) and new files.
-        3.  If services start, systematically test each new feature using the screenshot tool:
-            *   Navigate to the Messages tab. Does the DM list render?
-            *   Navigate to a chat. Does it crash? Does the UI for the emoji picker and image sending appear?
-            *   Navigate to the Profile tab. Does the new gradient design render?
-            *   Try to access the new  and  routes.
-        4.  Fix any crashes or major UI bugs found during testing. The agent overwrote many files, so conflicts or syntax errors are highly likely.
-     -   **Why fix this issue and what will be achieved with the fix?**: The application is currently in a broken, unstable state due to the massive, untested changes. This must be fixed to have a working baseline before proceeding with any other work.
-     -   **Status**: NOT STARTED
-     -   **Is recurring issue?**: N
-     -   **Should Test frontend/backend/both after fix?**: both
-     -   **Blocked on other issue**: None. This is the blocking issue.
+**Issues Detail**:
+-   **Issue 1**: Unverified Authentication Flow.
+    -   **Attempted fixes**: The agent struggled with signup/login early on and then switched to bypassing it by navigating directly to screen URLs. The core authentication flow has never been successfully completed or verified in this session.
+    -   **Next debug checklist**:
+        1.  Attempt to register a new user using the UI.
+        2.  Carefully monitor the Expo console logs and network requests for Firebase-related errors during signup.
+        3.  Check the Firebase Authentication console to see if the user is being created.
+        4.  Attempt to log in with the newly created user.
+        5.  Fix any issues found in the  or  files.
+    -   **Why fix this issue and what will be achieved with the fix?**: This is the single biggest blocker. None of the data-driven features (communities, messages, services, etc.) can be truly tested until a user can successfully log in. Fixing this will unblock all further development and testing.
+    -   **Status**: NOT STARTED
+    -   **Is recurring issue?**: Y (from the beginning of the session)
+    -   **Should Test frontend/backend/both after fix?**: both
+    -   **Blocked on other issue**: None. This is the primary blocking issue.
+-   **Issue 2**: Recurring file modification error.
+    -   **Attempted fixes**: The agent repeatedly introduced a duplicate definition error in  when adding new community-related API calls. It fixed it by manually removing the duplicate code.
+    -   **Next debug checklist**: The next agent must be extra cautious when modifying . Before applying a change, it should  the file to ensure the change doesn't already exist.
+    -   **Why fix this issue and what will be achieved with this?**: Prevents wasted cycles debugging a self-inflicted, repetitive error.
+    -   **Status**: RESOLVED (but at risk of recurrence)
+    -   **Is recurring issue?**: Y
+    -   **Should Test frontend/backend/both after fix?**: backend (service restart)
+    -   **Blocked on other issue**: None
 
 **In progress Task List**:
-  -   **Task 1**: (P0) Complete and stabilize the UX Enhancement feature set.
-     -   **Where to resume**: Start by restarting the  and 
-  Usage: expo [command] [options]
-
-  Options:
-  
-    -V, --version                     output the version number
-    --non-interactive                 Fail, if an interactive prompt would be required to continue.
-    -h, --help                        output usage information
-  
-  Commands:
-
-    init [name]                       Create a new Expo project
-    start [path]                      Start a local dev server for the app
-    start:web [path]                  Start a Webpack dev server for the web app
-    export [path]                     Export the static files of the app for hosting it on a web server
-    install [packages...]             Install a module or other package to a project
-    run:android [path]                Run the Android app binary locally
-    run:ios [path]                    Run the iOS app binary locally
-    send [path]                       Share the project's URL to an email address
-
-    login                             Login to an Expo account
-    logout                            Logout of an Expo account
-    register                          Sign up for a new Expo account
-    whoami                            Return the currently authenticated account
-
-    client:install:ios                Install Expo Go for iOS on the simulator
-    client:install:android            Install Expo Go for Android on a connected device or emulator
-
-    config [path]                     Show the project config
-    doctor [path]                     Diagnose issues with the project
-    upgrade [sdk-version]             Upgrade the project packages and config for the given SDK version
-
-    customize:web [path]              Eject the default web files for customization
-    prebuild [path]                   Create native iOS and Android project files before building natively.
-                                      Learn more: https://docs.expo.dev/workflow/customizing/
-
-    build:web [path]                  Build the web app for production
-
-    credentials:manager [path]        Superseded by eas credentials in eas-cli
-
-    url [path]                        Log a URL for opening the project in Expo Go
-    url:ipa [path]                    Log the download URL for the standalone iOS binary
-    url:apk [path]                    Log the download URL for the standalone Android binary
-
-    webhooks [path]                   List all webhooks for a project
-    webhooks:add [path]               Add a webhook to a project
-    webhooks:remove [path]            Delete a webhook
-    webhooks:update [path]            Update an existing webhook
-
-    build:ios [path]                  Superseded by eas build in eas-cli
-    build:android [path]              Superseded by eas build in eas-cli
-    build:status [path]               Superseded by eas build:list in eas-cli
-    eject [path]                      Superseded by expo prebuild
-    fetch:ios:certs [path]            Superseded by eas credentials in eas-cli
-    fetch:android:keystore [path]     Superseded by eas credentials in eas-cli
-    fetch:android:hashes [path]       Superseded by eas credentials in eas-cli
-    fetch:android:upload-cert [path]  Superseded by eas credentials in eas-cli
-    publish [path]                    Superseded by eas update in eas-cli
-    publish:set [path]                Superseded by eas update:republish in eas-cli
-    publish:rollback [path]           Superseded by eas update:republish in eas-cli
-    publish:history [path]            Superseded by eas update:list in eas-cli
-    publish:details [path]            Superseded by eas update:view in eas-cli
-    push:android:upload [path]        Superseded by eas credentials in eas-cli
-    push:android:show [path]          Superseded by eas credentials in eas-cli
-    push:android:clear [path]         Superseded by eas credentials in eas-cli
-    upload:android [path]             Superseded by eas submit in eas-cli
-    upload:ios [path]                 Superseded by eas submit in eas-cli
-    client:ios [path]                 Superseded by Expo Dev Clients
-
-[19:01:58]   Run a command with --help for more info 💡
-[19:01:58]     $ expo start --help
-[19:01:58] services and checking the logs for errors. The application is likely broken.
-     -   **What will be achieved with this?**: This will deliver the seven new features requested by the user and bring the application to a stable, testable state.
-     -   **Status**: IN PROGRESS
-     -   **Should Test frontend/backend/both after fix?**: both
-     -   **Blocked on something**: This task is essentially blocked by **Issue 1**. The code needs to be stabilized first.
+-   **Task 1**: (P0) Implement UI for Advanced Group/Community Features.
+    -   **Where to resume**: The backend endpoints and frontend API service calls are now in place. The next step is to modify the frontend components to use these new features.
+        -   : Add UI elements for creating polls, pinning messages, viewing pinned messages, and an interface for @mentions.
+        -   : Add a new section or tab for Announcements and a button for admins to create new announcements. Add UI for moderation actions.
+    -   **What will be achieved with this?**: This will complete the user's most recent and comprehensive feature request.
+    -   **Status**: IN PROGRESS
+    -   **Should Test frontend/backend/both after fix?**: both
+    -   **Blocked on something**: **Issue 1: Unverified Authentication Flow**. These features cannot be built or tested without a logged-in user context.
 
 **Upcoming and Future Tasks**
-- **Upcoming Tasks**:
-  - **P0**: Wire up the typing... indicator functionality using Firestore/Sockets. The UI stub may exist, but the logic is missing.
-  - **P1**: Implement the logic for message status ticks (sent/delivered/read) in the chat screen.
-- **Future Tasks**:
-  - Migrate community and sub-group chats from the old system to use Firestore for real-time communication.
-  - Create a main DM list screen ( was the original plan, now implemented as ). Review and ensure it meets all requirements.
+-   **Upcoming Tasks**:
+    -   **P0**: Implement Push Notifications using Firebase. (Requested, not started).
+    -   **P1**: Implement message edit/delete for *private* chats (currently only in group chats).
+    -   **P2**: Implement user profile pages that show user details and common communities.
+    -   **P3**: Implement real typing... indicator logic for private and group chats.
+    -   **P4**: Implement real message status logic (sent/delivered/read).
+-   **Future Tasks**:
+    -   Implement in-chat message search functionality.
+    -   Implement audio message sending.
+    -   Implement message forwarding and sharing.
 
 **Completed work in this session**
-- **Backend**:
-  - Fixed multiple syntax errors and removed duplicated code in .
-  - Added a startup function () to automatically grant the admin user () admin rights to all sub-groups.
-- **Frontend**:
-  - **Community/Admin**: Implemented the UI for the Community Detail screen () and the Admin CRUD screen ().
-  - **New Features (Code Added, Untested)**:
-    - DM List Screen ()
-    - Chat screen enhancements (UI for emoji/photo) in .
-    - Redesigned Profile Screen ().
-    - New Search Screen ().
-    - New Onboarding Screen ().
-    - Skeleton Loader Component ().
-    - Tab Bar Badges ().
+-   **Stabilization**: Fixed the app state left by the previous agent, which was unstable and had untested features.
+-   **Onboarding Screen**: Created and fully debugged the  screen, resolving a  vs  issue.
+-   **Skeleton Loader**: Created the  component.
+-   **New Screens Created**:
+    -   , , , , , .
+-   **Functional Buttons**: Added  handlers to previously non-functional buttons on the Profile and Home screens.
+-   **Redesigned  Tab**: Rewrote  to have a new UI with All, Communities, Groups, and DMs sub-tabs. Fixed a critical loading issue.
+-   **Redesigned  Tab**: Rewrote  with an advanced UI including search and filtering.
+-   **Media Attachments**: Added UI and media picking logic for sending images, videos, and files in both private and group chats.
+-   **Group Message Actions**: Implemented UI and backend for editing and deleting messages in group chats.
+-   **Backend API Expansion**: Added numerous new endpoints to  for services, notifications, announcements, polls, and moderation.
 
 **Earlier issues found/mentioned but not fixed**
-None explicitly mentioned, but the agent's workflow of applying massive, untested changes is a major potential issue that will likely manifest as numerous bugs for the next agent to fix.
+-   **Issue 1**: The signup/login flow is unstable and has not been verified. The agent was unable to create a user and log in through the UI, forcing it to test screens by navigating to URLs directly. This is now the highest priority issue to solve.
 
 **Known issue recurrence from previous fork**
-N/A
+-   **Issue recurrence in previous fork**: None from the previous fork summary.
+-   **Recurrence count**: 2 (within this session). The agent twice introduced a duplicate  definition in .
+-   **Status**: RESOLVED. The next agent should be aware of this pattern.
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
-- **Frontend**: React Native, Expo, Expo Router, , , , .
+- **Frontend**: React Native, Expo, Expo Router, , , , , , .
 - **Backend**: Python, FastAPI.
-- **Database**: MongoDB, Firebase Firestore.
+- **Database**: MongoDB.
 - **Authentication**: Firebase Authentication.
 
 **key DB schema**
-No changes were made to the DB schema in this session.
+- No direct schema changes, but new data types are now stored (e.g., announcements in the  collection, polls/pinned messages in ).
 
 **changes in tech stack**
-- **Added Frontend Dependencies**:
-  - : For UI gradients.
-  - : For an emoji picker.
-  - : For selecting photos from the device.
-  - : For utility functions like debounce (planned for search).
+-   **Added Frontend Dependencies**:
+    -   : For handling video playback.
+    -   : For picking general files.
 
 **All files of reference**
-- **Modified/Rewritten**:
-  - : Fixed syntax and added startup logic for admin permissions.
-  - : Implemented sub-group UI.
-  - : Implemented admin CRUD UI.
-  - : Rewritten to be a real-time DM list.
-  - : Rewritten to include UI stubs for new chat features.
-  - : Rewritten with a new visual design.
-  - : Modified to support notification badges.
-- **Newly Created**:
-  - : A new screen for search functionality.
-  - : A new screen for the user onboarding flow.
-  - : A reusable component for loading states.
+-   **Heavily Modified/Rewritten**:
+    -   : Added endpoints for services, announcements, polls, moderation, and message actions.
+    -   : Complete UI/UX overhaul with sub-tabs.
+    -   : Complete UI/UX overhaul with advanced filtering.
+    -   : Added media attachments and message edit/delete functionality.
+    -   : Added media attachments.
+    -   : Added numerous functions for new backend endpoints.
+-   **Newly Created**:
+    -   
+    -   
+    -   
+    -   
+    -   
+    -   
+    -   
+    -   
 
 **Areas that need refactoring**:
-- The development process itself needs refactoring. The previous agent's big bang approach of writing/overwriting many files at once without testing is unsustainable and creates a brittle codebase. The next agent should work in small, incremental, and testable steps.
+-   The  file has become extremely large and complex due to the addition of multiple features (attachments, edit, delete, modals). It should be broken down into smaller components and hooks.
+-   The authentication flow in  needs a thorough review and likely a refactor to ensure it's robust.
 
 **key api endpoints**
-No new API endpoints were added. The logic for making a user a sub-group admin was added to the server's startup sequence.
+-    (GET)
+-    (GET, POST, DELETE)
+-    (PUT, DELETE)
+-    (POST)
+-    (POST)
+-    (POST)
+-    (POST)
 
 **Critical Info for New Agent**
-- **Respond in Turkish.**
-- **Your immediate priority is to stabilize the application.** The previous agent introduced a massive number of features and code changes across 6+ files and added 4 new dependencies, all without restarting services or testing. The application is very likely broken.
-- **Do not start new features.** Your first task is to get the app running, check the logs for errors, and systematically debug the features that were just added.
-- **Work in small, testable steps.** Avoid the previous agent's pattern of making huge changes at once. For example, focus on getting just one new screen (e.g., the Profile tab) working correctly, then move to the next.
+-   **Respond in Turkish.**
+-   **YOUR #1 PRIORITY IS AUTHENTICATION.** The previous agent bypassed the login/signup flow to build UI. You must get the authentication flow working before doing anything else. Without a logged-in user, you cannot test or develop any of the data-dependent features that were just built.
+-   **Test Systematically**: Once auth is working, go through each new feature one-by-one and test it with a real user account. Many features have a backend but no connected UI yet.
+-   **Build UI for Backend Features**: The backend now supports polls, pinned messages, announcements, and moderation. Your next major task, after fixing auth, is to build the frontend UI for these features. Start with the In progress Task List.
+-   **Beware of **: Be careful when editing . The previous agent repeatedly created duplicate definitions. Verify the file contents before applying changes.
 
 **documents created in this job**
 None.
 
 **Last 10 User Messages and any pending HUMAN messages**
-- **Msg 101-109**: Agent starts implementing all 7 UX features at once, installs packages, and writes 6 files. **Status: IN PROGRESS, UNSTABLE.**
-- **Msg 100**: User responds to agent's suggestions with Hepsini sırayla ekle (Add them all in order). **Status: Acknowledged, work started.**
-- **Msg 99**: Agent asks the user for what to do next, suggesting several UX improvements. **Status: Awaiting user response.**
-- **Msg 97**: User asks Now what can we add to improve the user experience. **Status: Agent provided suggestions.**
-- **Msg 87-96**: Agent implements the backend logic to make the admin user a manager of all subgroups and summarizes the work done. **Status: Completed.**
-- **Msg 75-86**: Agent implements the DM list, chat screen stubs, and redesigned profile page. Installs  and takes a screenshot. **Status: Completed.**
-- **Msg 71-74**: Agent inspects the  directory and  file. **Status: In progress.**
-- **Msg 69-70**: Agent acknowledges the new feature requests and starts by trying to view a non-existent  file. **Status: In progress.**
-- **Msg 68**: User requests a batch of new features: DM list, message status ticks, typing... indicator, make user admin in subgroups, and improve the profile screen. **Status: Request received.**
-- **Msg 67**: Agent provides a summary of the completed work on the Community and Admin screens. **Status: Completed.**
+-   **Msg 360**: User reiterates the list of advanced group chat features (pin, poll, mention, search, moderation, member profiles) and adds a request for a community announcement button. **Status: IN PROGRESS (Backend/API service done, UI not started)**.
+-   **Msg 343**: User confirms Add them all in response to agent's suggestions for improving community/group UX. **Status: IN PROGRESS**.
+-   **Msg 340**: User asks for ideas on how to improve the communities and groups UX. **Status: Agent provided suggestions**.
+-   **Msg 339**: Agent provides a summary after fixing the  tab loading issue. **Status: Completed**.
+-   **Msg 317**: User complains that the  tab is still not loading. **Status: Agent investigated and fixed**.
+-   **Msg 260**: User complains the  tab isn't loading and requests message edit/delete and a Firebase listener. **Status: Agent investigated and implemented**.
+-   **Msg 223**: User requests file attachments for DMs, push notifications, message edit/delete, and a complete redesign of the  tab with sub-categories. **Status: Implemented (except push notifications)**.
+-   **Msg 188**: User requests linking the Services tab to chat, and adding file/photo/video attachments to both DMs and group chats. **Status: Implemented**.
+-   **Msg 161**: User says Continue. **Status: Acknowledged**.
+-   **Msg 142**: User requests that all suggested features be added and that non-functional buttons be made functional. **Status: Implemented**.
 
 **Project Health Check:**
--   **Broken**: The application is almost certainly broken. A large number of features were added simultaneously without any testing, package validation, or even a service restart. The next agent should assume the app will not compile or run correctly.
--   **Mocked**: No mocked data.
+-   **Broken**: The core authentication flow is unverified and likely broken, which blocks testing of almost all app functionality.
+-   **Mocked**: No mocked data is being used. The app relies on live API calls which fail without authentication.
 
 **3rd Party Integrations**
-- **Firebase Authentication**: Uses user-provided keys.
-- **Firebase Firestore**: Used for real-time messaging.
-- **Firebase Storage**: Configured but not used.
-- **expo-linear-gradient@15.0.8**: For UI gradients.
-- **@emoji-mart/react@1.1.1**: For emoji picker UI.
-- **expo-image-picker@17.0.10**: For accessing the device's image library.
-- **lodash**: Utility library.
+-   **Firebase Authentication**: Uses user-provided keys.
+-   **Firebase Firestore**: Used for real-time messaging.
+-   **expo-linear-gradient@15.0.8**
+-   **@emoji-mart/react@1.1.1**
+-   **expo-image-picker@17.0.10**
+-   **lodash**
+-   **expo-av@16.0.8**: For handling audio/video.
+-   **expo-document-picker@14.0.8**: For picking documents.
 
 **Testing status**
-- **Testing agent used after significant changes**: NO. This is a critical failure. The last, most significant batch of changes was not tested at all.
-- **Troubleshoot agent used after agent stuck in loop**: NO.
-- **Test files created**: None.
-- **Known regressions**: Unknown, but highly likely given the untested changes.
+-   **Testing agent used after significant changes**: NO. Changes were tested manually with the screenshot tool.
+-   **Troubleshoot agent used after agent stuck in loop**: NO. The agent resolved a recurring issue by itself.
+-   **Test files created**: None.
+-   **Known regressions**: The primary authentication flow is a major regression or an unresolved critical issue from the start.
 
 **Credentials to test flow:**
-- **Normal User**: Register any new user.
-- **Admin User**: Register with the email .
+-   **Normal User**: Needs to be created via the signup flow, which must be fixed first.
+-   **Admin User**:  (Cannot be used until signup/login is fixed).
 
 **What agent forgot to execute**
-The agent did not forget but critically failed to follow a safe development workflow. It did not:
-1.  Restart the 
-  Usage: expo [command] [options]
-
-  Options:
-  
-    -V, --version                     output the version number
-    --non-interactive                 Fail, if an interactive prompt would be required to continue.
-    -h, --help                        output usage information
-  
-  Commands:
-
-    init [name]                       Create a new Expo project
-    start [path]                      Start a local dev server for the app
-    start:web [path]                  Start a Webpack dev server for the web app
-    export [path]                     Export the static files of the app for hosting it on a web server
-    install [packages...]             Install a module or other package to a project
-    run:android [path]                Run the Android app binary locally
-    run:ios [path]                    Run the iOS app binary locally
-    send [path]                       Share the project's URL to an email address
-
-    login                             Login to an Expo account
-    logout                            Logout of an Expo account
-    register                          Sign up for a new Expo account
-    whoami                            Return the currently authenticated account
-
-    client:install:ios                Install Expo Go for iOS on the simulator
-    client:install:android            Install Expo Go for Android on a connected device or emulator
-
-    config [path]                     Show the project config
-    doctor [path]                     Diagnose issues with the project
-    upgrade [sdk-version]             Upgrade the project packages and config for the given SDK version
-
-    customize:web [path]              Eject the default web files for customization
-    prebuild [path]                   Create native iOS and Android project files before building natively.
-                                      Learn more: https://docs.expo.dev/workflow/customizing/
-
-    build:web [path]                  Build the web app for production
-
-    credentials:manager [path]        Superseded by eas credentials in eas-cli
-
-    url [path]                        Log a URL for opening the project in Expo Go
-    url:ipa [path]                    Log the download URL for the standalone iOS binary
-    url:apk [path]                    Log the download URL for the standalone Android binary
-
-    webhooks [path]                   List all webhooks for a project
-    webhooks:add [path]               Add a webhook to a project
-    webhooks:remove [path]            Delete a webhook
-    webhooks:update [path]            Update an existing webhook
-
-    build:ios [path]                  Superseded by eas build in eas-cli
-    build:android [path]              Superseded by eas build in eas-cli
-    build:status [path]               Superseded by eas build:list in eas-cli
-    eject [path]                      Superseded by expo prebuild
-    fetch:ios:certs [path]            Superseded by eas credentials in eas-cli
-    fetch:android:keystore [path]     Superseded by eas credentials in eas-cli
-    fetch:android:hashes [path]       Superseded by eas credentials in eas-cli
-    fetch:android:upload-cert [path]  Superseded by eas credentials in eas-cli
-    publish [path]                    Superseded by eas update in eas-cli
-    publish:set [path]                Superseded by eas update:republish in eas-cli
-    publish:rollback [path]           Superseded by eas update:republish in eas-cli
-    publish:history [path]            Superseded by eas update:list in eas-cli
-    publish:details [path]            Superseded by eas update:view in eas-cli
-    push:android:upload [path]        Superseded by eas credentials in eas-cli
-    push:android:show [path]          Superseded by eas credentials in eas-cli
-    push:android:clear [path]         Superseded by eas credentials in eas-cli
-    upload:android [path]             Superseded by eas submit in eas-cli
-    upload:ios [path]                 Superseded by eas submit in eas-cli
-    client:ios [path]                 Superseded by Expo Dev Clients
-
-[19:01:58]   Run a command with --help for more info 💡
-[19:01:58]     $ expo start --help
-[19:01:58] or  services after installing new packages and writing 6 new/modified files.
-2.  Test any of the seven new features it claimed to be implementing.
-3.  Work in small, verifiable steps, instead opting for a single, massive, high-risk update.
+-   The agent never fully resolved and verified the user signup and login functionality, which is the most critical missing piece.
+-   It built the backend/API service layer for advanced features (polls, pins, mentions, announcements) but did not implement the corresponding UI in the frontend components.
+-   The request for a real-time Firebase listener for notifications was not explicitly implemented, though the backend endpoints were created.
+-   Push notification integration was requested but not started.
 
 </analysis>
