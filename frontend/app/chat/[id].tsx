@@ -46,8 +46,10 @@ interface Message {
   content: string;
   timestamp: Date;
   status: 'sending' | 'sent' | 'delivered' | 'read';
-  type: 'text' | 'image';
+  type: 'text' | 'image' | 'video' | 'file';
   imageUrl?: string;
+  mediaUrl?: string;
+  fileName?: string;
   readBy?: string[];
   deliveredTo?: string[];
   replyTo?: {
