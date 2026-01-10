@@ -79,17 +79,6 @@ export const userListApi = {
   getProfile: (id: string) => api.get(`/users/${id}/profile`),
 };
 
-export const communityApi = {
-  getAll: () => api.get('/communities'),
-  getOne: (id: string) => api.get(`/communities/${id}`),
-  join: (id: string) => api.post(`/communities/${id}/join`),
-  leave: (id: string) => api.post(`/communities/${id}/leave`),
-  // Announcements
-  getAnnouncements: (id: string) => api.get(`/communities/${id}/announcements`),
-  createAnnouncement: (id: string, content: string) => api.post(`/communities/${id}/announcements`, { content }),
-  deleteAnnouncement: (communityId: string, announcementId: string) => api.delete(`/communities/${communityId}/announcements/${announcementId}`),
-};
-
 export const postApi = {
   getAll: () => api.get('/posts'),
   create: (data: any) => api.post('/posts', data),
