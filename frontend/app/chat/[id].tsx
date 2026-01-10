@@ -298,6 +298,7 @@ export default function PrivateChatScreen() {
     });
 
     if (!result.canceled && result.assets[0]) {
+      setShowAttachMenu(false);
       await uploadImage(result.assets[0].uri);
     }
   };
