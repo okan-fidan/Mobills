@@ -102,6 +102,7 @@ export default function OnboardingScreen() {
         )}
         scrollEventThrottle={16}
         style={styles.scrollView}
+        contentContainerStyle={{ minHeight: 400 }}
       >
         {slides.map((slide, index) => (
           <View key={slide.id} style={styles.slide}>
