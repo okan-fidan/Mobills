@@ -46,6 +46,7 @@ interface Message {
   type?: 'text' | 'image' | 'video' | 'file';
   mediaUrl?: string;
   fileName?: string;
+  edited?: boolean;
 }
 
 interface SubGroup {
@@ -65,6 +66,9 @@ export default function GroupChatScreen() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [showMessageActions, setShowMessageActions] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const { user, userProfile } = useAuth();
   const router = useRouter();
