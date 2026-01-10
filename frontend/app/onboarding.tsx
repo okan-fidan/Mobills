@@ -3,24 +3,22 @@ import {
   View,
   Text,
   StyleSheet,
-  Dimensions,
   TouchableOpacity,
   ScrollView,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 
-const { width } = Dimensions.get('window');
-
 interface OnboardingSlide {
   id: string;
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   description: string;
-  gradient: string[];
+  color: string;
 }
 
 const slides: OnboardingSlide[] = [
@@ -29,28 +27,28 @@ const slides: OnboardingSlide[] = [
     icon: 'people',
     title: 'Topluluklara Katılın',
     description: 'Şehrinize göre girişimci topluluklarını keşfedin ve diğer girişimcilerle bağlantı kurun.',
-    gradient: ['#4338ca', '#6366f1'],
+    color: '#6366f1',
   },
   {
     id: '2',
     icon: 'chatbubbles',
     title: 'Mesajlaşın',
     description: 'Grup sohbetleri ve özel mesajlar ile iletişimde kalın. Fikirlerinizi paylaşın.',
-    gradient: ['#0891b2', '#06b6d4'],
+    color: '#06b6d4',
   },
   {
     id: '3',
     icon: 'briefcase',
     title: 'Hizmetlerinizi Sunun',
     description: 'Sunduğunuz hizmetleri paylaşın ve diğer girişimcilerden hizmet alın.',
-    gradient: ['#059669', '#10b981'],
+    color: '#10b981',
   },
   {
     id: '4',
     icon: 'rocket',
     title: 'Büyüyün',
     description: 'Mastermind gruplarına katılın, mentorlarla tanışın ve işinizi büyütün.',
-    gradient: ['#d97706', '#f59e0b'],
+    color: '#f59e0b',
   },
 ];
 
@@ -59,6 +57,7 @@ export default function OnboardingScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const router = useRouter();
+  const { width } = useWindowDimensions();
 
   const handleNext = () => {
     if (currentIndex < slides.length - 1) {
@@ -80,8 +79,12 @@ export default function OnboardingScreen() {
   const handleScroll = (event: any) => {
     const offsetX = event.nativeEvent.contentOffset.x;
     const index = Math.round(offsetX / width);
-    setCurrentIndex(index);
+    if (index !== currentIndex && index >= 0 && index < slides.length) {
+      setCurrentIndex(index);
+    }
   };
+
+  const currentSlide = slides[currentIndex];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -91,42 +94,30 @@ export default function OnboardingScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        ref={scrollViewRef}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: false, listener: handleScroll }
-        )}
-        scrollEventThrottle={16}
-        style={styles.scrollView}
-        contentContainerStyle={{ minHeight: 400 }}
-      >
-        {slides.map((slide, index) => (
-          <View key={slide.id} style={styles.slide}>
-            <View style={[styles.iconContainer, { backgroundColor: slide.gradient[0] }]}>
-              <Ionicons name={slide.icon} size={80} color="#fff" />
-            </View>
-            <Text style={styles.title}>{slide.title}</Text>
-            <Text style={styles.description}>{slide.description}</Text>
-          </View>
-        ))}
-      </ScrollView>
+      <View style={styles.content}>
+        <View style={[styles.iconContainer, { backgroundColor: currentSlide.color }]}>
+          <Ionicons name={currentSlide.icon} size={80} color="#fff" />
+        </View>
+        <Text style={styles.title}>{currentSlide.title}</Text>
+        <Text style={styles.description}>{currentSlide.description}</Text>
+      </View>
 
       <View style={styles.pagination}>
         {slides.map((_, index) => (
-          <View
+          <TouchableOpacity
             key={index}
-            style={[
-              styles.dot,
-              {
-                backgroundColor: index === currentIndex ? '#6366f1' : '#4b5563',
-                transform: [{ scale: index === currentIndex ? 1.3 : 1 }],
-              },
-            ]}
-          />
+            onPress={() => setCurrentIndex(index)}
+          >
+            <View
+              style={[
+                styles.dot,
+                {
+                  backgroundColor: index === currentIndex ? '#6366f1' : '#4b5563',
+                  width: index === currentIndex ? 24 : 8,
+                },
+              ]}
+            />
+          </TouchableOpacity>
         ))}
       </View>
 
@@ -169,12 +160,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  scrollView: {
+  content: {
     flex: 1,
-  },
-  slide: {
-    width,
-    height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
@@ -205,12 +192,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginVertical: 24,
+    gap: 8,
   },
   dot: {
-    width: 8,
     height: 8,
     borderRadius: 4,
-    marginHorizontal: 6,
   },
   footer: {
     paddingHorizontal: 24,
