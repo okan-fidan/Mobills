@@ -50,25 +50,52 @@ export default function PrivateChatScreen() {
   const router = useRouter();
 
   const loadData = useCallback(async () => {
-    if (!otherUserId) return;
+    if (!otherUserId || !user) return;
     try {
-      const [messagesRes, userRes] = await Promise.all([
-        messageApi.getPrivate(otherUserId),
-        userListApi.getOne(otherUserId),
-      ]);
-      setMessages(messagesRes.data.reverse());
+      // Karşı kullanıcının profilini backend'den çek
+      const userRes = await userListApi.getOne(otherUserId);
       setOtherUser(userRes.data);
+
+      // Sohbet kimliğini iki kullanıcının uid'sine göre belirle
+      const userIds = [user.uid, otherUserId].sort();
+      const chatId = `${userIds[0]}_${userIds[1]}`;
+
+      const messagesRef = collection(db, 'conversations', chatId, 'messages');
+      const q = query(messagesRef, orderBy('createdAt', 'asc'));
+
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const docs: Message[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as any;
+          docs.push({
+            id: docSnap.id,
+            senderId: data.senderId,
+            senderName: data.senderName,
+            senderProfileImage: data.senderProfileImage,
+            content: data.text || '',
+            timestamp: data.createdAt?.toDate?.().toISOString?.() || new Date().toISOString(),
+          });
+        });
+        setMessages(docs);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
     } catch (error) {
       console.error('Error loading chat:', error);
-    } finally {
       setLoading(false);
     }
-  }, [otherUserId]);
+  }, [otherUserId, user]);
 
   useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 5000); // Poll for new messages
-    return () => clearInterval(interval);
+    const unsubscribe = loadData();
+    return () => {
+      if (typeof unsubscribe === 'function') {
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore
+        unsubscribe();
+      }
+    };
   }, [loadData]);
 
   const handleSend = async () => {
