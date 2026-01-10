@@ -278,13 +278,7 @@ export default function AdminCommunitiesScreen() {
   const loadSubgroups = async (communityId: string) => {
     setLoadingSubgroups(true);
     try {
-      const response = await adminApi.getCommunities();
-      const comm = response.data.find((c: any) => c.id === communityId);
-      // We need to get subgroups from the community detail endpoint
-      const detailResponse = await fetch(`/api/communities/${communityId}`, {
-        headers: { Authorization: `Bearer ${await getToken()}` }
-      });
-      // For now, we'll just show a placeholder
+      // For now, we'll just show a placeholder - subgroups are loaded with community detail
       setSubgroups([]);
     } catch (error) {
       console.error('Error loading subgroups:', error);
