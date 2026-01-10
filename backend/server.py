@@ -33,7 +33,7 @@ api_router = APIRouter(prefix="/api")
 # Security
 security = HTTPBearer()
 
-# Admin email
+# Admin email - Ana yönetici
 ADMIN_EMAIL = "metaticaretim@gmail.com"
 
 # Turkish Cities List
@@ -50,112 +50,6 @@ TURKISH_CITIES = [
     'Tekirdağ', 'Tokat', 'Trabzon', 'Tunceli', 'Uşak', 'Van', 'Yalova', 'Yozgat', 'Zonguldak'
 ]
 
-# Models
-class UserProfile(BaseModel):
-    uid: str
-    email: str
-    firstName: str
-    lastName: str
-    phone: Optional[str] = None
-    city: str
-    occupation: Optional[str] = None
-    profileImageUrl: Optional[str] = None
-    isAdmin: bool = False
-    communities: List[str] = []
-    createdAt: datetime = Field(default_factory=datetime.utcnow)
-
-class UserRegister(BaseModel):
-    email: str
-    firstName: str
-    lastName: str
-    phone: Optional[str] = None
-    city: str
-    occupation: Optional[str] = None
-
-class Message(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    groupId: Optional[str] = None
-    chatId: Optional[str] = None
-    senderId: str
-    senderName: str
-    senderProfileImage: Optional[str] = None
-    receiverId: Optional[str] = None
-    content: str
-    type: str = "text"
-    fileUrl: Optional[str] = None
-    reactions: dict = {}
-    isPinned: bool = False
-    isDeleted: bool = False
-    deletedForEveryone: bool = False
-    deletedFor: List[str] = []
-    replyTo: Optional[str] = None
-    replyToContent: Optional[str] = None
-    replyToSenderName: Optional[str] = None
-    isEdited: bool = False
-    readBy: List[str] = []
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-class Community(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    name: str
-    description: Optional[str] = None
-    city: str
-    imageUrl: Optional[str] = None
-    superAdmins: List[str] = []
-    members: List[str] = []
-    subGroups: List[str] = []
-    announcementChannelId: Optional[str] = None
-    createdBy: str
-    createdByName: str
-    createdAt: datetime = Field(default_factory=datetime.utcnow)
-
-class SubGroup(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    communityId: str
-    name: str
-    description: Optional[str] = None
-    imageUrl: Optional[str] = None
-    groupAdmins: List[str] = []
-    members: List[str] = []
-    pendingRequests: List[dict] = []
-    isPublic: bool = True
-    createdBy: str
-    createdByName: str
-    createdAt: datetime = Field(default_factory=datetime.utcnow)
-
-class Post(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    userId: str
-    userName: str
-    userProfileImage: Optional[str] = None
-    content: str
-    imageUrl: Optional[str] = None
-    likes: List[str] = []
-    comments: List[dict] = []
-    shares: int = 0
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-class Comment(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    postId: str
-    userId: str
-    userName: str
-    userProfileImage: Optional[str] = None
-    content: str
-    likes: List[str] = []
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
-class Service(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    userId: str
-    userName: str
-    title: str
-    description: str
-    category: str
-    city: str
-    contactPhone: str
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
 # Dependency to verify Firebase token
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     try:
@@ -164,6 +58,13 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
         return decoded_token
     except Exception as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+# Check if user is global admin
+async def check_global_admin(current_user: dict):
+    user = await db.users.find_one({"uid": current_user['uid']})
+    if not user:
+        return False
+    return user.get('isAdmin', False) or user.get('email', '').lower() == ADMIN_EMAIL.lower()
 
 # Initialize city communities
 async def initialize_city_communities():
@@ -180,12 +81,27 @@ async def initialize_city_communities():
                 "superAdmins": [],
                 "members": [],
                 "subGroups": [],
+                "bannedUsers": [],
+                "restrictedUsers": [],
                 "announcementChannelId": announcement_id,
                 "createdBy": "system",
                 "createdByName": "System",
                 "createdAt": datetime.utcnow()
             }
             await db.communities.insert_one(community)
+
+# Ensure admin is in all communities
+async def ensure_admin_in_all_communities():
+    admin_user = await db.users.find_one({"email": {"$regex": f"^{ADMIN_EMAIL}$", "$options": "i"}})
+    if admin_user:
+        await db.communities.update_many(
+            {},
+            {"$addToSet": {"superAdmins": admin_user['uid'], "members": admin_user['uid']}}
+        )
+        await db.users.update_one(
+            {"uid": admin_user['uid']},
+            {"$set": {"isAdmin": True}}
+        )
 
 # Routes
 @api_router.get("/")
@@ -197,17 +113,20 @@ async def get_cities():
     return {"cities": TURKISH_CITIES}
 
 @api_router.post("/user/register")
-async def register_user(user_data: UserRegister, current_user: dict = Depends(get_current_user)):
+async def register_user(user_data: dict, current_user: dict = Depends(get_current_user)):
     existing_user = await db.users.find_one({"uid": current_user['uid']})
     if existing_user:
         if '_id' in existing_user:
             del existing_user['_id']
         return existing_user
 
-    is_admin = user_data.email.lower() == ADMIN_EMAIL.lower()
+    email = user_data.get('email', '')
+    is_admin = email.lower() == ADMIN_EMAIL.lower()
     user_communities = []
 
-    city_community = await db.communities.find_one({"city": user_data.city})
+    # Şehre göre topluluk ataması
+    city = user_data.get('city', '')
+    city_community = await db.communities.find_one({"city": city})
     if city_community:
         user_communities.append(city_community['id'])
         await db.communities.update_one(
@@ -215,16 +134,30 @@ async def register_user(user_data: UserRegister, current_user: dict = Depends(ge
             {"$addToSet": {"members": current_user['uid']}}
         )
 
+    # Admin ise tüm topluluklara süper admin olarak ekle
+    if is_admin:
+        all_communities = await db.communities.find().to_list(100)
+        for community in all_communities:
+            if community['id'] not in user_communities:
+                user_communities.append(community['id'])
+            await db.communities.update_one(
+                {"id": community['id']},
+                {"$addToSet": {"superAdmins": current_user['uid'], "members": current_user['uid']}}
+            )
+
     user_profile = {
         "uid": current_user['uid'],
-        "email": user_data.email,
-        "firstName": user_data.firstName,
-        "lastName": user_data.lastName,
-        "phone": user_data.phone,
-        "city": user_data.city,
-        "occupation": user_data.occupation,
+        "email": email,
+        "firstName": user_data.get('firstName', ''),
+        "lastName": user_data.get('lastName', ''),
+        "phone": user_data.get('phone'),
+        "city": city,
+        "occupation": user_data.get('occupation'),
         "profileImageUrl": None,
         "isAdmin": is_admin,
+        "isBanned": False,
+        "isRestricted": False,
+        "restrictedUntil": None,
         "communities": user_communities,
         "createdAt": datetime.utcnow()
     }
@@ -273,7 +206,8 @@ async def check_user_admin(current_user: dict = Depends(get_current_user)):
         is_admin = True
     return {"isAdmin": is_admin}
 
-# Communities
+# ==================== COMMUNITIES ====================
+
 @api_router.get("/communities")
 async def get_communities(current_user: dict = Depends(get_current_user)):
     communities = await db.communities.find().sort("name", 1).to_list(100)
@@ -298,6 +232,11 @@ async def get_community(community_id: str, current_user: dict = Depends(get_curr
     community['isMember'] = current_user['uid'] in community.get('members', [])
     community['isSuperAdmin'] = current_user['uid'] in community.get('superAdmins', [])
     
+    # Check global admin
+    user = await db.users.find_one({"uid": current_user['uid']})
+    if user and (user.get('isAdmin') or user.get('email', '').lower() == ADMIN_EMAIL.lower()):
+        community['isSuperAdmin'] = True
+    
     subgroups = await db.subgroups.find({"communityId": community_id}).to_list(100)
     for sg in subgroups:
         if '_id' in sg:
@@ -313,6 +252,10 @@ async def join_community(community_id: str, current_user: dict = Depends(get_cur
     community = await db.communities.find_one({"id": community_id})
     if not community:
         raise HTTPException(status_code=404, detail="Topluluk bulunamadı")
+
+    # Check if banned
+    if current_user['uid'] in community.get('bannedUsers', []):
+        raise HTTPException(status_code=403, detail="Bu topluluktan yasaklandınız")
 
     await db.communities.update_one(
         {"id": community_id},
@@ -330,12 +273,15 @@ async def leave_community(community_id: str, current_user: dict = Depends(get_cu
     if not community:
         raise HTTPException(status_code=404, detail="Topluluk bulunamadı")
 
-    if current_user['uid'] in community.get('superAdmins', []):
-        raise HTTPException(status_code=400, detail="Süper yönetici topluluktan ayrılamaz")
+    user = await db.users.find_one({"uid": current_user['uid']})
+    is_global_admin = user.get('isAdmin', False) or user.get('email', '').lower() == ADMIN_EMAIL.lower()
+    
+    if is_global_admin:
+        raise HTTPException(status_code=400, detail="Global yönetici topluluktan ayrılamaz")
 
     await db.communities.update_one(
         {"id": community_id},
-        {"$pull": {"members": current_user['uid']}}
+        {"$pull": {"members": current_user['uid'], "superAdmins": current_user['uid']}}
     )
     await db.users.update_one(
         {"uid": current_user['uid']},
@@ -343,7 +289,8 @@ async def leave_community(community_id: str, current_user: dict = Depends(get_cu
     )
     return {"message": "Topluluktan ayrıldınız"}
 
-# SubGroups
+# ==================== SUBGROUPS ====================
+
 @api_router.post("/communities/{community_id}/subgroups")
 async def create_subgroup(community_id: str, subgroup_data: dict, current_user: dict = Depends(get_current_user)):
     community = await db.communities.find_one({"id": community_id})
@@ -366,6 +313,9 @@ async def create_subgroup(community_id: str, subgroup_data: dict, current_user: 
         "imageUrl": subgroup_data.get('imageUrl'),
         "groupAdmins": [current_user['uid']],
         "members": [current_user['uid']],
+        "bannedUsers": [],
+        "restrictedUsers": [],
+        "pinnedMessages": [],
         "pendingRequests": [],
         "isPublic": subgroup_data.get('isPublic', True),
         "createdBy": current_user['uid'],
@@ -400,6 +350,12 @@ async def get_subgroup(subgroup_id: str, current_user: dict = Depends(get_curren
     if community:
         subgroup['communityName'] = community['name']
         subgroup['isSuperAdmin'] = current_user['uid'] in community.get('superAdmins', [])
+        
+    # Check global admin
+    user = await db.users.find_one({"uid": current_user['uid']})
+    if user and (user.get('isAdmin') or user.get('email', '').lower() == ADMIN_EMAIL.lower()):
+        subgroup['isSuperAdmin'] = True
+        subgroup['isGroupAdmin'] = True
 
     return subgroup
 
@@ -408,6 +364,9 @@ async def join_subgroup(subgroup_id: str, current_user: dict = Depends(get_curre
     subgroup = await db.subgroups.find_one({"id": subgroup_id})
     if not subgroup:
         raise HTTPException(status_code=404, detail="Alt grup bulunamadı")
+
+    if current_user['uid'] in subgroup.get('bannedUsers', []):
+        raise HTTPException(status_code=403, detail="Bu gruptan yasaklandınız")
 
     if current_user['uid'] in subgroup.get('members', []):
         raise HTTPException(status_code=400, detail="Zaten bu grubun üyesisiniz")
@@ -426,7 +385,8 @@ async def leave_subgroup(subgroup_id: str, current_user: dict = Depends(get_curr
     )
     return {"message": "Gruptan ayrıldınız"}
 
-# Messages
+# ==================== MESSAGES ====================
+
 @api_router.get("/subgroups/{subgroup_id}/messages")
 async def get_subgroup_messages(subgroup_id: str, current_user: dict = Depends(get_current_user)):
     messages = await db.messages.find({
@@ -448,6 +408,14 @@ async def send_subgroup_message(subgroup_id: str, message_data: dict, current_us
     subgroup = await db.subgroups.find_one({"id": subgroup_id})
     if not subgroup:
         raise HTTPException(status_code=404, detail="Alt grup bulunamadı")
+
+    # Check if user is restricted
+    restricted_users = subgroup.get('restrictedUsers', [])
+    for restriction in restricted_users:
+        if restriction.get('uid') == current_user['uid']:
+            until = restriction.get('until')
+            if until and until > datetime.utcnow():
+                raise HTTPException(status_code=403, detail=f"Mesaj gönderme yetkiniz kısıtlandı")
 
     if current_user['uid'] not in subgroup.get('members', []):
         raise HTTPException(status_code=403, detail="Bu grubun üyesi değilsiniz")
@@ -488,8 +456,19 @@ async def delete_message(message_id: str, current_user: dict = Depends(get_curre
     if not message:
         raise HTTPException(status_code=404, detail="Mesaj bulunamadı")
 
-    if message['senderId'] != current_user['uid']:
-        raise HTTPException(status_code=403, detail="Sadece kendi mesajınızı silebilirsiniz")
+    user = await db.users.find_one({"uid": current_user['uid']})
+    is_global_admin = user.get('isAdmin', False) or user.get('email', '').lower() == ADMIN_EMAIL.lower()
+    
+    # Check group admin
+    group_id = message.get('groupId')
+    is_group_admin = False
+    if group_id:
+        subgroup = await db.subgroups.find_one({"id": group_id})
+        if subgroup:
+            is_group_admin = current_user['uid'] in subgroup.get('groupAdmins', [])
+
+    if message['senderId'] != current_user['uid'] and not is_global_admin and not is_group_admin:
+        raise HTTPException(status_code=403, detail="Bu mesajı silme yetkiniz yok")
 
     await db.messages.update_one(
         {"id": message_id},
@@ -497,7 +476,8 @@ async def delete_message(message_id: str, current_user: dict = Depends(get_curre
     )
     return {"message": "Mesaj silindi"}
 
-# Private Messages
+# ==================== PRIVATE MESSAGES ====================
+
 @api_router.get("/private-messages/{other_user_id}")
 async def get_private_messages(other_user_id: str, current_user: dict = Depends(get_current_user)):
     user_ids = sorted([current_user['uid'], other_user_id])
@@ -547,7 +527,8 @@ async def send_private_message(message: dict, current_user: dict = Depends(get_c
     await sio.emit('new_private_message', new_message, room=chat_id)
     return new_message
 
-# Users
+# ==================== USERS ====================
+
 @api_router.get("/users")
 async def get_users(current_user: dict = Depends(get_current_user)):
     users = await db.users.find({"uid": {"$ne": current_user['uid']}}).to_list(1000)
@@ -565,7 +546,8 @@ async def get_user(user_id: str, current_user: dict = Depends(get_current_user))
         del user['_id']
     return user
 
-# Posts
+# ==================== POSTS ====================
+
 @api_router.get("/posts")
 async def get_posts(current_user: dict = Depends(get_current_user)):
     posts = await db.posts.find().sort("timestamp", -1).limit(50).to_list(50)
@@ -655,9 +637,16 @@ async def add_comment(post_id: str, comment_data: dict, current_user: dict = Dep
 
 @api_router.delete("/posts/{post_id}")
 async def delete_post(post_id: str, current_user: dict = Depends(get_current_user)):
-    post = await db.posts.find_one({"id": post_id, "userId": current_user['uid']})
+    user = await db.users.find_one({"uid": current_user['uid']})
+    is_global_admin = user.get('isAdmin', False) or user.get('email', '').lower() == ADMIN_EMAIL.lower()
+    
+    post = await db.posts.find_one({"id": post_id})
     if not post:
         raise HTTPException(status_code=404, detail="Gönderi bulunamadı")
+        
+    if post['userId'] != current_user['uid'] and not is_global_admin:
+        raise HTTPException(status_code=403, detail="Bu gönderiyi silme yetkiniz yok")
+        
     await db.posts.delete_one({"id": post_id})
     return {"message": "Gönderi silindi"}
 
@@ -669,7 +658,8 @@ async def get_my_posts(current_user: dict = Depends(get_current_user)):
             del post['_id']
     return posts
 
-# Services
+# ==================== SERVICES ====================
+
 @api_router.get("/services")
 async def get_services(current_user: dict = Depends(get_current_user)):
     services = await db.services.find().sort("timestamp", -1).to_list(100)
@@ -708,7 +698,8 @@ async def delete_service(service_id: str, current_user: dict = Depends(get_curre
     await db.services.delete_one({"id": service_id})
     return {"message": "Hizmet silindi"}
 
-# Announcements
+# ==================== ANNOUNCEMENTS ====================
+
 @api_router.get("/communities/{community_id}/announcements")
 async def get_announcements(community_id: str, current_user: dict = Depends(get_current_user)):
     community = await db.communities.find_one({"id": community_id})
@@ -756,6 +747,553 @@ async def send_announcement(community_id: str, message_data: dict, current_user:
         del new_message['_id']
     return new_message
 
+# ==================== ADMIN PANEL APIs ====================
+
+# Dashboard Stats
+@api_router.get("/admin/dashboard")
+async def admin_dashboard(current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    total_users = await db.users.count_documents({})
+    total_communities = await db.communities.count_documents({})
+    total_subgroups = await db.subgroups.count_documents({})
+    total_messages = await db.messages.count_documents({})
+    total_posts = await db.posts.count_documents({})
+    total_services = await db.services.count_documents({})
+
+    week_ago = datetime.utcnow() - timedelta(days=7)
+    new_users_week = await db.users.count_documents({"createdAt": {"$gte": week_ago}})
+
+    banned_users = await db.users.count_documents({"isBanned": True})
+
+    return {
+        "stats": {
+            "totalUsers": total_users,
+            "totalCommunities": total_communities,
+            "totalSubgroups": total_subgroups,
+            "totalMessages": total_messages,
+            "totalPosts": total_posts,
+            "totalServices": total_services,
+            "newUsersThisWeek": new_users_week,
+            "bannedUsers": banned_users
+        }
+    }
+
+# Get all users (admin)
+@api_router.get("/admin/users")
+async def admin_get_users(current_user: dict = Depends(get_current_user), search: str = None):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    query = {}
+    if search:
+        query = {
+            "$or": [
+                {"firstName": {"$regex": search, "$options": "i"}},
+                {"lastName": {"$regex": search, "$options": "i"}},
+                {"email": {"$regex": search, "$options": "i"}},
+                {"city": {"$regex": search, "$options": "i"}}
+            ]
+        }
+
+    users = await db.users.find(query).sort("createdAt", -1).to_list(1000)
+
+    for user in users:
+        if '_id' in user:
+            del user['_id']
+
+    return users
+
+# Ban user globally
+@api_router.post("/admin/users/{user_id}/ban")
+async def admin_ban_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    target_user = await db.users.find_one({"uid": user_id})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+
+    if target_user.get('email', '').lower() == ADMIN_EMAIL.lower():
+        raise HTTPException(status_code=400, detail="Ana yönetici yasaklanamaz")
+
+    await db.users.update_one(
+        {"uid": user_id},
+        {"$set": {"isBanned": True}}
+    )
+
+    # Remove from all communities
+    await db.communities.update_many(
+        {},
+        {"$pull": {"members": user_id, "superAdmins": user_id}, "$addToSet": {"bannedUsers": user_id}}
+    )
+
+    # Remove from all subgroups
+    await db.subgroups.update_many(
+        {},
+        {"$pull": {"members": user_id, "groupAdmins": user_id}, "$addToSet": {"bannedUsers": user_id}}
+    )
+
+    return {"message": "Kullanıcı yasaklandı"}
+
+# Unban user
+@api_router.post("/admin/users/{user_id}/unban")
+async def admin_unban_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.users.update_one(
+        {"uid": user_id},
+        {"$set": {"isBanned": False}}
+    )
+
+    # Remove from ban lists
+    await db.communities.update_many(
+        {},
+        {"$pull": {"bannedUsers": user_id}}
+    )
+
+    await db.subgroups.update_many(
+        {},
+        {"$pull": {"bannedUsers": user_id}}
+    )
+
+    return {"message": "Kullanıcının yasağı kaldırıldı"}
+
+# Restrict user (mute)
+@api_router.post("/admin/users/{user_id}/restrict")
+async def admin_restrict_user(user_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    hours = data.get('hours', 24)
+    reason = data.get('reason', 'Yönetici tarafından kısıtlandı')
+    until = datetime.utcnow() + timedelta(hours=hours)
+
+    await db.users.update_one(
+        {"uid": user_id},
+        {"$set": {"isRestricted": True, "restrictedUntil": until}}
+    )
+
+    # Add to restricted list in all subgroups
+    restriction = {"uid": user_id, "until": until, "reason": reason}
+    await db.subgroups.update_many(
+        {"members": user_id},
+        {"$push": {"restrictedUsers": restriction}}
+    )
+
+    return {"message": f"Kullanıcı {hours} saat kısıtlandı", "until": until.isoformat()}
+
+# Unrestrict user
+@api_router.post("/admin/users/{user_id}/unrestrict")
+async def admin_unrestrict_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.users.update_one(
+        {"uid": user_id},
+        {"$set": {"isRestricted": False, "restrictedUntil": None}}
+    )
+
+    await db.subgroups.update_many(
+        {},
+        {"$pull": {"restrictedUsers": {"uid": user_id}}}
+    )
+
+    return {"message": "Kullanıcının kısıtlaması kaldırıldı"}
+
+# Delete user's recent messages
+@api_router.delete("/admin/users/{user_id}/messages")
+async def admin_delete_user_messages(user_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    hours = data.get('hours', 24)
+    since = datetime.utcnow() - timedelta(hours=hours)
+
+    result = await db.messages.delete_many({
+        "senderId": user_id,
+        "timestamp": {"$gte": since}
+    })
+
+    return {"message": f"{result.deleted_count} mesaj silindi"}
+
+# Make user admin
+@api_router.post("/admin/users/{user_id}/make-admin")
+async def admin_make_admin(user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.users.update_one(
+        {"uid": user_id},
+        {"$set": {"isAdmin": True}}
+    )
+
+    # Add as super admin to all communities
+    await db.communities.update_many(
+        {},
+        {"$addToSet": {"superAdmins": user_id, "members": user_id}}
+    )
+
+    return {"message": "Kullanıcı yönetici yapıldı"}
+
+# Remove admin
+@api_router.post("/admin/users/{user_id}/remove-admin")
+async def admin_remove_admin(user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    target_user = await db.users.find_one({"uid": user_id})
+    if target_user and target_user.get('email', '').lower() == ADMIN_EMAIL.lower():
+        raise HTTPException(status_code=400, detail="Ana yöneticinin yetkisi kaldırılamaz")
+
+    await db.users.update_one(
+        {"uid": user_id},
+        {"$set": {"isAdmin": False}}
+    )
+
+    # Remove from super admins (but keep as member)
+    await db.communities.update_many(
+        {},
+        {"$pull": {"superAdmins": user_id}}
+    )
+
+    return {"message": "Yönetici yetkisi kaldırıldı"}
+
+# Get all communities (admin)
+@api_router.get("/admin/communities")
+async def admin_get_communities(current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    communities = await db.communities.find().sort("name", 1).to_list(100)
+
+    for c in communities:
+        if '_id' in c:
+            del c['_id']
+        c['memberCount'] = len(c.get('members', []))
+        c['superAdminCount'] = len(c.get('superAdmins', []))
+        c['subGroupCount'] = len(c.get('subGroups', []))
+        c['bannedCount'] = len(c.get('bannedUsers', []))
+
+    return communities
+
+# Get community members (admin)
+@api_router.get("/admin/communities/{community_id}/members")
+async def admin_get_community_members(community_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    community = await db.communities.find_one({"id": community_id})
+    if not community:
+        raise HTTPException(status_code=404, detail="Topluluk bulunamadı")
+
+    member_ids = community.get('members', [])
+    members = await db.users.find({"uid": {"$in": member_ids}}).to_list(1000)
+
+    for member in members:
+        if '_id' in member:
+            del member['_id']
+        member['isSuperAdmin'] = member['uid'] in community.get('superAdmins', [])
+        member['isBannedFromCommunity'] = member['uid'] in community.get('bannedUsers', [])
+
+    return members
+
+# Ban user from community
+@api_router.post("/admin/communities/{community_id}/ban/{user_id}")
+async def admin_ban_from_community(community_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.communities.update_one(
+        {"id": community_id},
+        {"$pull": {"members": user_id, "superAdmins": user_id}, "$addToSet": {"bannedUsers": user_id}}
+    )
+
+    await db.users.update_one(
+        {"uid": user_id},
+        {"$pull": {"communities": community_id}}
+    )
+
+    return {"message": "Kullanıcı topluluktan yasaklandı"}
+
+# Kick user from community
+@api_router.post("/admin/communities/{community_id}/kick/{user_id}")
+async def admin_kick_from_community(community_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.communities.update_one(
+        {"id": community_id},
+        {"$pull": {"members": user_id, "superAdmins": user_id}}
+    )
+
+    await db.users.update_one(
+        {"uid": user_id},
+        {"$pull": {"communities": community_id}}
+    )
+
+    return {"message": "Kullanıcı topluluktan çıkarıldı"}
+
+# Add super admin to community
+@api_router.post("/admin/communities/{community_id}/super-admin/{user_id}")
+async def admin_add_super_admin(community_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.communities.update_one(
+        {"id": community_id},
+        {"$addToSet": {"superAdmins": user_id, "members": user_id}}
+    )
+
+    return {"message": "Süper yönetici eklendi"}
+
+# Remove super admin from community
+@api_router.delete("/admin/communities/{community_id}/super-admin/{user_id}")
+async def admin_remove_super_admin(community_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.communities.update_one(
+        {"id": community_id},
+        {"$pull": {"superAdmins": user_id}}
+    )
+
+    return {"message": "Süper yönetici kaldırıldı"}
+
+# Update community settings
+@api_router.put("/admin/communities/{community_id}")
+async def admin_update_community(community_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    allowed_fields = ['name', 'description', 'imageUrl']
+    updates = {k: v for k, v in data.items() if k in allowed_fields}
+
+    if updates:
+        await db.communities.update_one({"id": community_id}, {"$set": updates})
+
+    return {"message": "Topluluk güncellendi"}
+
+# Get subgroup members (admin)
+@api_router.get("/admin/subgroups/{subgroup_id}/members")
+async def admin_get_subgroup_members(subgroup_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    subgroup = await db.subgroups.find_one({"id": subgroup_id})
+    if not subgroup:
+        raise HTTPException(status_code=404, detail="Alt grup bulunamadı")
+
+    member_ids = subgroup.get('members', [])
+    members = await db.users.find({"uid": {"$in": member_ids}}).to_list(1000)
+
+    restricted_users = {r.get('uid'): r for r in subgroup.get('restrictedUsers', [])}
+
+    for member in members:
+        if '_id' in member:
+            del member['_id']
+        member['isGroupAdmin'] = member['uid'] in subgroup.get('groupAdmins', [])
+        member['isBannedFromGroup'] = member['uid'] in subgroup.get('bannedUsers', [])
+        restriction = restricted_users.get(member['uid'])
+        member['isRestrictedInGroup'] = restriction is not None
+        member['restrictedUntil'] = restriction.get('until').isoformat() if restriction else None
+
+    return members
+
+# Ban user from subgroup
+@api_router.post("/admin/subgroups/{subgroup_id}/ban/{user_id}")
+async def admin_ban_from_subgroup(subgroup_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.subgroups.update_one(
+        {"id": subgroup_id},
+        {"$pull": {"members": user_id, "groupAdmins": user_id}, "$addToSet": {"bannedUsers": user_id}}
+    )
+
+    return {"message": "Kullanıcı gruptan yasaklandı"}
+
+# Kick user from subgroup
+@api_router.post("/admin/subgroups/{subgroup_id}/kick/{user_id}")
+async def admin_kick_from_subgroup(subgroup_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.subgroups.update_one(
+        {"id": subgroup_id},
+        {"$pull": {"members": user_id, "groupAdmins": user_id}}
+    )
+
+    return {"message": "Kullanıcı gruptan çıkarıldı"}
+
+# Restrict user in subgroup
+@api_router.post("/admin/subgroups/{subgroup_id}/restrict/{user_id}")
+async def admin_restrict_in_subgroup(subgroup_id: str, user_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    hours = data.get('hours', 24)
+    reason = data.get('reason', 'Yönetici tarafından kısıtlandı')
+    until = datetime.utcnow() + timedelta(hours=hours)
+
+    # Remove existing restriction
+    await db.subgroups.update_one(
+        {"id": subgroup_id},
+        {"$pull": {"restrictedUsers": {"uid": user_id}}}
+    )
+
+    # Add new restriction
+    await db.subgroups.update_one(
+        {"id": subgroup_id},
+        {"$push": {"restrictedUsers": {"uid": user_id, "until": until, "reason": reason}}}
+    )
+
+    return {"message": f"Kullanıcı {hours} saat kısıtlandı"}
+
+# Unrestrict user in subgroup
+@api_router.post("/admin/subgroups/{subgroup_id}/unrestrict/{user_id}")
+async def admin_unrestrict_in_subgroup(subgroup_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.subgroups.update_one(
+        {"id": subgroup_id},
+        {"$pull": {"restrictedUsers": {"uid": user_id}}}
+    )
+
+    return {"message": "Kullanıcının kısıtlaması kaldırıldı"}
+
+# Add group admin
+@api_router.post("/admin/subgroups/{subgroup_id}/admin/{user_id}")
+async def admin_add_group_admin(subgroup_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.subgroups.update_one(
+        {"id": subgroup_id},
+        {"$addToSet": {"groupAdmins": user_id, "members": user_id}}
+    )
+
+    return {"message": "Grup yöneticisi eklendi"}
+
+# Remove group admin
+@api_router.delete("/admin/subgroups/{subgroup_id}/admin/{user_id}")
+async def admin_remove_group_admin(subgroup_id: str, user_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.subgroups.update_one(
+        {"id": subgroup_id},
+        {"$pull": {"groupAdmins": user_id}}
+    )
+
+    return {"message": "Grup yöneticisi kaldırıldı"}
+
+# Delete user's messages in subgroup
+@api_router.delete("/admin/subgroups/{subgroup_id}/messages/{user_id}")
+async def admin_delete_subgroup_messages(subgroup_id: str, user_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    hours = data.get('hours', 24)
+    since = datetime.utcnow() - timedelta(hours=hours)
+
+    result = await db.messages.delete_many({
+        "groupId": subgroup_id,
+        "senderId": user_id,
+        "timestamp": {"$gte": since}
+    })
+
+    return {"message": f"{result.deleted_count} mesaj silindi"}
+
+# Pin message
+@api_router.post("/admin/messages/{message_id}/pin")
+async def admin_pin_message(message_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    message = await db.messages.find_one({"id": message_id})
+    if not message:
+        raise HTTPException(status_code=404, detail="Mesaj bulunamadı")
+
+    is_pinned = not message.get('isPinned', False)
+
+    await db.messages.update_one(
+        {"id": message_id},
+        {"$set": {"isPinned": is_pinned}}
+    )
+
+    group_id = message.get('groupId')
+    if group_id and is_pinned:
+        await db.subgroups.update_one(
+            {"id": group_id},
+            {"$addToSet": {"pinnedMessages": message_id}}
+        )
+    elif group_id:
+        await db.subgroups.update_one(
+            {"id": group_id},
+            {"$pull": {"pinnedMessages": message_id}}
+        )
+
+    return {"message": "Mesaj sabitlendi" if is_pinned else "Sabitleme kaldırıldı", "isPinned": is_pinned}
+
+# Delete any message
+@api_router.delete("/admin/messages/{message_id}")
+async def admin_delete_message(message_id: str, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    await db.messages.update_one(
+        {"id": message_id},
+        {"$set": {"deletedForEveryone": True, "content": "Bu mesaj yönetici tarafından silindi", "isDeleted": True}}
+    )
+
+    return {"message": "Mesaj silindi"}
+
+# Create poll
+@api_router.post("/admin/subgroups/{subgroup_id}/polls")
+async def admin_create_poll(subgroup_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    user = await db.users.find_one({"uid": current_user['uid']})
+
+    poll = {
+        "id": str(uuid.uuid4()),
+        "groupId": subgroup_id,
+        "question": data['question'],
+        "options": [{"text": opt, "votes": []} for opt in data.get('options', [])],
+        "createdBy": current_user['uid'],
+        "createdByName": f"{user['firstName']} {user['lastName']}",
+        "isAnonymous": data.get('isAnonymous', False),
+        "multipleChoice": data.get('multipleChoice', False),
+        "expiresAt": datetime.utcnow() + timedelta(hours=data.get('expiresInHours', 24)) if data.get('expiresInHours') else None,
+        "createdAt": datetime.utcnow()
+    }
+
+    await db.polls.insert_one(poll)
+
+    # Also create a message for the poll
+    poll_message = {
+        "id": str(uuid.uuid4()),
+        "groupId": subgroup_id,
+        "senderId": current_user['uid'],
+        "senderName": f"{user['firstName']} {user['lastName']}",
+        "content": f"📊 Anket: {data['question']}",
+        "type": "poll",
+        "pollId": poll['id'],
+        "timestamp": datetime.utcnow()
+    }
+
+    await db.messages.insert_one(poll_message)
+
+    if '_id' in poll:
+        del poll['_id']
+
+    return poll
+
 # Socket.IO events
 @sio.event
 async def connect(sid, environ):
@@ -770,14 +1308,12 @@ async def join_room(sid, data):
     room = data.get('room')
     if room:
         sio.enter_room(sid, room)
-        logging.info(f"Client {sid} joined room {room}")
 
 @sio.event
 async def leave_room(sid, data):
     room = data.get('room')
     if room:
         sio.leave_room(sid, room)
-        logging.info(f"Client {sid} left room {room}")
 
 # Include the router in the main app
 app.include_router(api_router)
@@ -801,9 +1337,10 @@ logger = logging.getLogger(__name__)
 async def startup_event():
     try:
         await initialize_city_communities()
-        logger.info("City communities initialized")
+        await ensure_admin_in_all_communities()
+        logger.info("City communities initialized and admin configured")
     except Exception as e:
-        logger.error(f"Error initializing communities: {e}")
+        logger.error(f"Error during startup: {e}")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
