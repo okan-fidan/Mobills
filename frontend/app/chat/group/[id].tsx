@@ -349,7 +349,7 @@ export default function GroupChatScreen() {
             )}
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
     );
   };
 
@@ -363,6 +363,47 @@ export default function GroupChatScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* Message Actions Modal */}
+      <Modal
+        visible={showMessageActions}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowMessageActions(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay} 
+          activeOpacity={1}
+          onPress={() => setShowMessageActions(false)}
+        >
+          <View style={styles.actionsModal}>
+            <Text style={styles.actionsTitle}>Mesaj İşlemleri</Text>
+            {selectedMessage?.type === 'text' && (
+              <TouchableOpacity 
+                style={styles.actionItem}
+                onPress={() => selectedMessage && startEditMessage(selectedMessage)}
+              >
+                <Ionicons name="pencil" size={22} color="#6366f1" />
+                <Text style={styles.actionText}>Düzenle</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity 
+              style={[styles.actionItem, styles.deleteAction]}
+              onPress={() => selectedMessage && handleDeleteMessage(selectedMessage.id)}
+            >
+              <Ionicons name="trash" size={22} color="#ef4444" />
+              <Text style={[styles.actionText, styles.deleteText]}>Sil</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={styles.actionItem}
+              onPress={() => setShowMessageActions(false)}
+            >
+              <Ionicons name="close" size={22} color="#6b7280" />
+              <Text style={styles.actionText}>İptal</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
