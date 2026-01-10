@@ -134,14 +134,47 @@ async def initialize_city_communities():
                 {"$set": {"subGroups": subgroup_ids}}
             )
         else:
-            # Check if community has default subgroups, if not create them
-            subgroups = await db.subgroups.find({"communityId": existing['id']}).to_list(10)
-            if len(subgroups) < 3:
-                subgroup_ids = await create_default_subgroups(existing['id'], existing['name'])
-                await db.communities.update_one(
-                    {"id": existing['id']},
-                    {"$addToSet": {"subGroups": {"$each": subgroup_ids}}}
-                )
+            # Mevcut topluluğun alt gruplarını kontrol et
+            existing_subgroups = await db.subgroups.find({"communityId": existing['id']}).to_list(20)
+            existing_names = {sg.get('name', '') for sg in existing_subgroups}
+
+            missing_default_subgroups = []
+            for sg_data in DEFAULT_SUBGROUPS:
+                full_name = f"{existing['name']} - {sg_data['name']}"
+                if full_name not in existing_names:
+                    missing_default_subgroups.append(sg_data)
+
+            if missing_default_subgroups:
+                # Sadece eksik olan default grupları oluştur
+                subgroup_ids = []
+                for sg_data in missing_default_subgroups:
+                    subgroup_id = str(uuid.uuid4())
+                    new_subgroup = {
+                        "id": subgroup_id,
+                        "communityId": existing['id'],
+                        "name": f"{existing['name']} - {sg_data['name']}",
+                        "description": sg_data['description'],
+                        "imageUrl": None,
+                        "groupAdmins": [],
+                        "members": [],
+                        "bannedUsers": [],
+                        "restrictedUsers": [],
+                        "pinnedMessages": [],
+                        "pendingRequests": [],
+                        "isPublic": sg_data['isPublic'],
+                        "requiresApproval": True,
+                        "createdBy": "system",
+                        "createdByName": "System",
+                        "createdAt": datetime.utcnow()
+                    }
+                    await db.subgroups.insert_one(new_subgroup)
+                    subgroup_ids.append(subgroup_id)
+
+                if subgroup_ids:
+                    await db.communities.update_one(
+                        {"id": existing['id']},
+                        {"$addToSet": {"subGroups": {"$each": subgroup_ids}}}
+                    )
 
 # Ensure admin is in all communities
 async def ensure_admin_in_all_communities():
