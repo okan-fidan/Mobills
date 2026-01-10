@@ -1041,6 +1041,14 @@ async def get_announcements(community_id: str, current_user: dict = Depends(get_
     if not community:
         raise HTTPException(status_code=404, detail="Topluluk bulunamadı")
 
+    # Sadece topluluk üyeleri veya yöneticiler duyuruları görebilir
+    is_member = current_user['uid'] in community.get('members', [])
+    is_super_admin = current_user['uid'] in community.get('superAdmins', [])
+    is_global_admin = await check_global_admin(current_user)
+
+    if not (is_member or is_super_admin or is_global_admin):
+        raise HTTPException(status_code=403, detail="Duyuruları görmek için önce topluluğa katılmanız gerekiyor")
+
     announcement_channel_id = community.get('announcementChannelId')
     if not announcement_channel_id:
         return []
@@ -1109,6 +1117,57 @@ async def admin_dashboard(current_user: dict = Depends(get_current_user)):
 
     return {
         "stats": {
+
+# List all pending subgroup join requests (admin global view)
+@api_router.get("/admin/subgroup-join-requests")
+async def admin_subgroup_join_requests(community_id: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Tüm alt gruplardaki bekleyen katılma isteklerini listeler.
+
+    İsteğe bağlı olarak belirli bir community_id için filtrelenebilir.
+    Global admin yetkisi gerektirir.
+    """
+    if not await check_global_admin(current_user):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekiyor")
+
+    query: dict = {"pendingRequests": {"$exists": True, "$ne": []}}
+    if community_id:
+        query["communityId"] = community_id
+
+    subgroups = await db.subgroups.find(query).to_list(1000)
+
+    results = []
+    for sg in subgroups:
+        community = await db.communities.find_one({"id": sg["communityId"]})
+        community_name = community["name"] if community else None
+
+        for req in sg.get("pendingRequests", []):
+            user_id = req.get("uid")
+            user_doc = await db.users.find_one({"uid": user_id}) if user_id else None
+            if user_doc and "_id" in user_doc:
+                del user_doc["_id"]
+
+            results.append({
+                "communityId": sg["communityId"],
+                "communityName": community_name,
+                "subgroupId": sg["id"],
+                "subgroupName": sg.get("name"),
+                "userId": user_id,
+                "userName": req.get("name"),
+                "profileImageUrl": req.get("profileImageUrl"),
+                "requestedAt": req.get("requestedAt"),
+                "userCity": user_doc.get("city") if user_doc else None,
+                "userOccupation": user_doc.get("occupation") if user_doc else None,
+                "userEmail": user_doc.get("email") if user_doc else None,
+            })
+
+    # requestedAt alanına göre en yeniler önce gelecek şekilde sırala
+    def sort_key(item):
+        ts = item.get("requestedAt")
+        return ts if isinstance(ts, datetime) else datetime.min
+
+    results.sort(key=sort_key, reverse=True)
+    return results
+
             "totalUsers": total_users,
             "totalCommunities": total_communities,
             "totalSubgroups": total_subgroups,
