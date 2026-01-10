@@ -105,14 +105,9 @@ export default function OnboardingScreen() {
       >
         {slides.map((slide, index) => (
           <View key={slide.id} style={styles.slide}>
-            <LinearGradient
-              colors={slide.gradient}
-              style={styles.iconContainer}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-            >
+            <View style={[styles.iconContainer, { backgroundColor: slide.gradient[0] }]}>
               <Ionicons name={slide.icon} size={80} color="#fff" />
-            </LinearGradient>
+            </View>
             <Text style={styles.title}>{slide.title}</Text>
             <Text style={styles.description}>{slide.description}</Text>
           </View>
