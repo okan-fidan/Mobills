@@ -127,21 +127,29 @@ export default function ServicesScreen() {
       <Text style={styles.serviceTitle}>{item.title}</Text>
       <Text style={styles.serviceDescription}>{item.description}</Text>
       <View style={styles.serviceFooter}>
-        <View style={styles.serviceUser}>
-          <Ionicons name="person-outline" size={16} color="#9ca3af" />
+        <TouchableOpacity 
+          style={styles.serviceUser}
+          onPress={() => router.push(`/user/${item.userId}`)}
+        >
+          <View style={styles.userAvatar}>
+            <Ionicons name="person" size={14} color="#9ca3af" />
+          </View>
           <Text style={styles.serviceUserName}>{item.userName}</Text>
-        </View>
-        <View style={styles.serviceLocation}>
-          <Ionicons name="location-outline" size={16} color="#9ca3af" />
-          <Text style={styles.serviceLocationText}>{item.city}</Text>
-        </View>
-      </View>
-      {item.contactPhone && (
-        <TouchableOpacity style={styles.contactButton}>
-          <Ionicons name="call" size={18} color="#fff" />
-          <Text style={styles.contactButtonText}>İletişime Geç</Text>
         </TouchableOpacity>
-      )}
+        {item.city && (
+          <View style={styles.serviceLocation}>
+            <Ionicons name="location-outline" size={16} color="#9ca3af" />
+            <Text style={styles.serviceLocationText}>{item.city}</Text>
+          </View>
+        )}
+      </View>
+      <TouchableOpacity 
+        style={styles.contactButton}
+        onPress={() => handleContactService(item)}
+      >
+        <Ionicons name="chatbubble" size={18} color="#fff" />
+        <Text style={styles.contactButtonText}>İletişime Geç</Text>
+      </TouchableOpacity>
     </View>
   );
 
