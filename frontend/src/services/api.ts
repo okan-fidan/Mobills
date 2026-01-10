@@ -33,8 +33,10 @@ export const communityApi = {
   join: (id: string) => api.post(`/communities/${id}/join`),
   leave: (id: string) => api.post(`/communities/${id}/leave`),
   createSubgroup: (communityId: string, data: any) => api.post(`/communities/${communityId}/subgroups`, data),
+  // Announcements
   getAnnouncements: (id: string) => api.get(`/communities/${id}/announcements`),
   sendAnnouncement: (id: string, data: any) => api.post(`/communities/${id}/announcements`, data),
+  deleteAnnouncement: (communityId: string, announcementId: string) => api.delete(`/communities/${communityId}/announcements/${announcementId}`),
 };
 
 export const subgroupApi = {
