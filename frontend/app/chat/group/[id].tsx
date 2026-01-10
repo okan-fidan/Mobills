@@ -293,7 +293,12 @@ export default function GroupChatScreen() {
     const isMe = item.senderId === user?.uid;
 
     return (
-      <View style={[styles.messageContainer, isMe && styles.myMessageContainer]}>
+      <TouchableOpacity 
+        style={[styles.messageContainer, isMe && styles.myMessageContainer]}
+        onLongPress={() => handleLongPressMessage(item)}
+        delayLongPress={500}
+        activeOpacity={0.8}
+      >
         {!isMe && (
           <TouchableOpacity 
             style={styles.avatarSmall}
@@ -335,9 +340,14 @@ export default function GroupChatScreen() {
             <Text style={[styles.messageText, isMe && styles.myMessageText]}>{item.content}</Text>
           ) : null}
           
-          <Text style={[styles.messageTime, isMe && styles.myMessageTime]}>
-            {formatTime(item.timestamp)}
-          </Text>
+          <View style={styles.messageFooter}>
+            <Text style={[styles.messageTime, isMe && styles.myMessageTime]}>
+              {formatTime(item.timestamp)}
+            </Text>
+            {item.edited && (
+              <Text style={[styles.editedLabel, isMe && styles.myEditedLabel]}> (düzenlendi)</Text>
+            )}
+          </View>
         </View>
       </View>
     );
