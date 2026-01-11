@@ -631,15 +631,38 @@ export default function GroupChatScreen() {
           >
             <Ionicons name={showEmojiPicker ? "close" : "happy-outline"} size={26} color="#6b7280" />
           </TouchableOpacity>
-          <TextInput
-            style={[styles.input, editingMessage && styles.inputEditing]}
-            placeholder={editingMessage ? "Mesajı düzenle..." : "Mesaj yaz..."}
-            placeholderTextColor="#6b7280"
-            value={inputText}
-            onChangeText={setInputText}
-            multiline
-            maxLength={1000}
-          />
+          <View style={styles.inputWrapper}>
+            {/* @mention listesi */}
+            {showMentionList && filteredMembers.length > 0 && (
+              <View style={styles.mentionList}>
+                <ScrollView keyboardShouldPersistTaps="handled" style={styles.mentionScroll}>
+                  {filteredMembers.slice(0, 5).map((member) => (
+                    <TouchableOpacity
+                      key={member.uid}
+                      style={styles.mentionItem}
+                      onPress={() => handleSelectMention(member)}
+                    >
+                      <View style={styles.mentionAvatar}>
+                        <Text style={styles.mentionAvatarText}>
+                          {member.firstName?.[0]}{member.lastName?.[0]}
+                        </Text>
+                      </View>
+                      <Text style={styles.mentionName}>{member.firstName} {member.lastName}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+            <TextInput
+              style={[styles.input, editingMessage && styles.inputEditing]}
+              placeholder={editingMessage ? "Mesajı düzenle..." : "Mesaj yaz... (@mention için @ kullanın)"}
+              placeholderTextColor="#6b7280"
+              value={inputText}
+              onChangeText={handleTextChange}
+              multiline
+              maxLength={1000}
+            />
+          </View>
           <TouchableOpacity
             style={[styles.sendButton, (!inputText.trim() || sending) && styles.sendButtonDisabled, editingMessage && styles.editSendButton]}
             onPress={() => handleSend()}
