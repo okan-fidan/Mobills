@@ -48,14 +48,23 @@ export default function SignupScreen() {
     } catch (error: any) {
       console.error('Signup error:', error);
       let message = 'Kayıt yapılamadı';
-      if (error.code === 'auth/email-already-in-use') {
-        message = 'Bu email zaten kullanımda';
-      } else if (error.code === 'auth/invalid-email') {
+      
+      const errorCode = error?.code || '';
+      const errorMessage = error?.message || '';
+      
+      if (errorCode === 'auth/email-already-in-use') {
+        message = 'Bu email adresi zaten kullanımda';
+      } else if (errorCode === 'auth/invalid-email') {
         message = 'Geçersiz email adresi';
-      } else if (error.code === 'auth/weak-password') {
-        message = 'Şifre çok zayıf';
+      } else if (errorCode === 'auth/weak-password') {
+        message = 'Şifre çok zayıf. En az 6 karakter ve güçlü bir şifre seçin.';
+      } else if (errorCode === 'auth/network-request-failed') {
+        message = 'İnternet bağlantınızı kontrol edin';
+      } else if (errorMessage.includes('unknown error') || errorMessage.includes('Web server')) {
+        message = 'Sunucu bağlantısında geçici bir sorun var. Lütfen tekrar deneyin.';
       }
-      Alert.alert('Hata', message);
+      
+      Alert.alert('Kayıt Hatası', message);
     } finally {
       setLoading(false);
     }
