@@ -343,13 +343,13 @@ export default function SettingsScreen() {
           <SettingItem
             icon="key"
             title="Şifre Değiştir"
-            onPress={() => Alert.alert('Bilgi', 'Şifre değiştirme özelliği yakında')}
+            onPress={() => router.push('/change-password')}
           />
           
           <SettingItem
             icon="lock-closed"
             title="Gizlilik Ayarları"
-            onPress={() => Alert.alert('Bilgi', 'Gizlilik ayarları yakında')}
+            onPress={() => router.push('/privacy-security')}
           />
         </View>
 
