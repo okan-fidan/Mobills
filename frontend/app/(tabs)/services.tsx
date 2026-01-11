@@ -168,12 +168,6 @@ export default function ServicesScreen() {
           <Text style={styles.headerTitle}>Hizmetler</Text>
           <Text style={styles.headerSubtitle}>Girişimci hizmetleri</Text>
         </View>
-        <TouchableOpacity
-          style={styles.addButton}
-          onPress={() => setModalVisible(true)}
-        >
-          <Ionicons name="add" size={24} color="#fff" />
-        </TouchableOpacity>
       </View>
 
       <FlatList
