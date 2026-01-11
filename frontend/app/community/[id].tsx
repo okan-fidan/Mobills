@@ -386,6 +386,14 @@ export default function CommunityDetailScreen() {
           <View style={styles.announcementHeader}>
             <Ionicons name="megaphone" size={24} color="#f59e0b" />
             <Text style={styles.sectionTitle}>Duyurular</Text>
+            {isAdmin && (
+              <TouchableOpacity 
+                style={styles.addAnnouncementBtn}
+                onPress={() => setShowAnnouncementModal(true)}
+              >
+                <Ionicons name="add-circle" size={28} color="#f59e0b" />
+              </TouchableOpacity>
+            )}
           </View>
           
           {!community.isMember && (
@@ -402,9 +410,19 @@ export default function CommunityDetailScreen() {
               <View key={announcement.id} style={styles.announcementCard}>
                 <View style={styles.announcementMeta}>
                   <Text style={styles.announcementSender}>{announcement.senderName}</Text>
-                  <Text style={styles.announcementTime}>
-                    {formatDate(announcement.timestamp)}
-                  </Text>
+                  <View style={styles.announcementActions}>
+                    <Text style={styles.announcementTime}>
+                      {formatDate(announcement.timestamp)}
+                    </Text>
+                    {isAdmin && (
+                      <TouchableOpacity 
+                        onPress={() => handleDeleteAnnouncement(announcement.id)}
+                        style={styles.deleteAnnouncementBtn}
+                      >
+                        <Ionicons name="trash-outline" size={18} color="#ef4444" />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
                 <Text style={styles.announcementContent}>{announcement.content}</Text>
               </View>
@@ -420,6 +438,51 @@ export default function CommunityDetailScreen() {
         {/* Bottom padding */}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Duyuru Gönderme Modal */}
+      <Modal visible={showAnnouncementModal} animationType="slide" transparent>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Yeni Duyuru</Text>
+              <TouchableOpacity onPress={() => setShowAnnouncementModal(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <TextInput
+                style={styles.announcementInput}
+                placeholder="Duyuru metnini yazın..."
+                placeholderTextColor="#6b7280"
+                value={announcementText}
+                onChangeText={setAnnouncementText}
+                multiline
+                numberOfLines={4}
+                textAlignVertical="top"
+              />
+
+              <TouchableOpacity 
+                style={[styles.sendAnnouncementBtn, sendingAnnouncement && styles.disabledBtn]}
+                onPress={handleSendAnnouncement}
+                disabled={sendingAnnouncement}
+              >
+                {sendingAnnouncement ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <>
+                    <Ionicons name="megaphone" size={20} color="#fff" />
+                    <Text style={styles.sendAnnouncementText}>Duyuru Gönder</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
