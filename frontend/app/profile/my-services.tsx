@@ -40,7 +40,7 @@ export default function MyServicesScreen() {
 
   const loadServices = useCallback(async () => {
     try {
-      const response = await api.get('/my-services');
+      const response = await api.get('/api/my-services');
       setServices(response.data);
     } catch (error) {
       console.error('Error loading services:', error);
@@ -70,8 +70,9 @@ export default function MyServicesScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.delete(`/services/${serviceId}`);
+              await api.delete(`/api/services/${serviceId}`);
               setServices(services.filter(s => s.id !== serviceId));
+              Alert.alert('Başarılı', 'Hizmet silindi');
             } catch (error) {
               Alert.alert('Hata', 'Hizmet silinemedi');
             }
