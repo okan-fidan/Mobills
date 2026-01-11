@@ -366,13 +366,13 @@ export default function SettingsScreen() {
           <SettingItem
             icon="help-circle"
             title="Yardım ve Destek"
-            onPress={() => Alert.alert('Bilgi', 'Destek: support@networksolution.com')}
+            onPress={() => router.push('/help')}
           />
           
           <SettingItem
             icon="document-text"
             title="Kullanım Koşulları"
-            onPress={() => Alert.alert('Bilgi', 'Kullanım koşulları yakında')}
+            onPress={() => router.push('/terms')}
           />
           
           <SettingItem
