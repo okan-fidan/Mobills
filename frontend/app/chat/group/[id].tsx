@@ -26,6 +26,7 @@ import { subgroupApi } from '../../../src/services/api';
 import { useAuth } from '../../../src/contexts/AuthContext';
 import { formatDistanceToNow } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import api from '../../../src/services/api';
 
 // Emoji listesi
 const EMOJI_LIST = [
@@ -48,14 +49,14 @@ interface Message {
   fileName?: string;
   edited?: boolean;
   isPinned?: boolean;
-  // Reply feature
   replyTo?: {
     id: string;
     content: string;
     senderName: string;
   };
-  // Message status
   status?: 'sent' | 'delivered' | 'read';
+  readBy?: string[];
+  deliveredTo?: string[];
 }
 
 interface Poll {
@@ -75,6 +76,7 @@ interface SubGroup {
   memberCount: number;
   communityName?: string;
   groupAdmins?: string[];
+  members?: string[];
 }
 
 export default function GroupChatScreen() {
@@ -92,22 +94,21 @@ export default function GroupChatScreen() {
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   // Yanıtlama (Reply) için state
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
-  // Yeni özellikler için state'ler
-  const [polls, setPolls] = useState<Poll[]>([]);
-  const [pinnedMessages, setPinnedMessages] = useState<Message[]>([]);
-  const [showPollModal, setShowPollModal] = useState(false);
-  const [showPinnedModal, setShowPinnedModal] = useState(false);
-  const [showGroupMenu, setShowGroupMenu] = useState(false);
-  const [pollQuestion, setPollQuestion] = useState('');
-  const [pollOptions, setPollOptions] = useState(['', '']);
-  const [isMultipleChoice, setIsMultipleChoice] = useState(false);
+  // İletme (Forward) için state
+  const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
+  const [showForwardModal, setShowForwardModal] = useState(false);
+  const [forwardTargets, setForwardTargets] = useState<{id: string, name: string, type: 'group' | 'user'}[]>([]);
+  const [loadingForwardTargets, setLoadingForwardTargets] = useState(false);
   // @mention için state'ler
   const [showMentionList, setShowMentionList] = useState(false);
   const [mentionSearch, setMentionSearch] = useState('');
   const [groupMembers, setGroupMembers] = useState<{uid: string; firstName: string; lastName: string}[]>([]);
-  // İletme (Forward) için state
-  const [showForwardModal, setShowForwardModal] = useState(false);
-  const [forwardingMessage, setForwardingMessage] = useState<Message | null>(null);
+  // Anketler
+  const [polls, setPolls] = useState<Poll[]>([]);
+  const [showPollModal, setShowPollModal] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+  
   const flatListRef = useRef<FlatList>(null);
   const { user, userProfile } = useAuth();
   const router = useRouter();
@@ -137,6 +138,9 @@ export default function GroupChatScreen() {
       } catch (e) {
         // Üye yükleme hatası sessizce geç
       }
+      
+      // Mesajları okundu olarak işaretle
+      markMessagesAsRead();
     } catch (error) {
       console.error('Error loading group chat:', error);
     } finally {
@@ -144,11 +148,65 @@ export default function GroupChatScreen() {
     }
   }, [groupId]);
 
+  // Mesajları okundu olarak işaretle
+  const markMessagesAsRead = async () => {
+    if (!groupId || !user?.uid) return;
+    try {
+      const unreadMessages = messages.filter(
+        m => m.senderId !== user.uid && !m.readBy?.includes(user.uid)
+      );
+      for (const msg of unreadMessages) {
+        await api.post(`/api/messages/${msg.id}/status`, { status: 'read' });
+      }
+    } catch (error) {
+      console.error('Error marking messages as read:', error);
+    }
+  };
+
   useEffect(() => {
     loadData();
     const interval = setInterval(loadData, 5000);
     return () => clearInterval(interval);
   }, [loadData]);
+
+  // İletme hedeflerini yükle
+  const loadForwardTargets = async () => {
+    setLoadingForwardTargets(true);
+    try {
+      const [chatsRes, usersRes] = await Promise.all([
+        api.get('/api/chats'),
+        api.get('/api/users'),
+      ]);
+      
+      const targets: {id: string, name: string, type: 'group' | 'user'}[] = [];
+      
+      // Sohbetleri ekle
+      chatsRes.data?.forEach((chat: any) => {
+        targets.push({
+          id: chat.chatId,
+          name: chat.userName,
+          type: 'user'
+        });
+      });
+      
+      // Kullanıcıları ekle (henüz sohbet başlatılmamış olanlar)
+      usersRes.data?.slice(0, 20).forEach((u: any) => {
+        if (!targets.find(t => t.id.includes(u.uid))) {
+          targets.push({
+            id: u.uid,
+            name: `${u.firstName} ${u.lastName}`,
+            type: 'user'
+          });
+        }
+      });
+      
+      setForwardTargets(targets);
+    } catch (error) {
+      console.error('Error loading forward targets:', error);
+    } finally {
+      setLoadingForwardTargets(false);
+    }
+  };
 
   const uploadMedia = async (uri: string, type: 'image' | 'video' | 'file', fileName?: string) => {
     if (!user?.uid || !groupId) return null;
@@ -195,8 +253,18 @@ export default function GroupChatScreen() {
         if (fileName) messageData.fileName = fileName;
       }
 
+      // Yanıtlanan mesaj varsa ekle
+      if (replyingTo) {
+        messageData.replyTo = {
+          id: replyingTo.id,
+          content: replyingTo.content.substring(0, 100),
+          senderName: replyingTo.senderName,
+        };
+      }
+
       const response = await subgroupApi.sendMessage(groupId, messageData);
       setMessages([...messages, response.data]);
+      setReplyingTo(null);
       setTimeout(() => flatListRef.current?.scrollToEnd(), 100);
     } catch (error) {
       console.error('Error sending message:', error);
@@ -267,7 +335,6 @@ export default function GroupChatScreen() {
     try {
       await subgroupApi.pinMessage(groupId, message.id);
       Alert.alert('Başarılı', 'Mesaj sabitlendi');
-      // Mesajı pinned olarak işaretle
       setMessages(messages.map(m => 
         m.id === message.id ? { ...m, isPinned: true } : m
       ));
@@ -278,15 +345,63 @@ export default function GroupChatScreen() {
     setShowMessageActions(false);
   };
 
+  // Yanıtlama başlat
+  const startReply = (message: Message) => {
+    setReplyingTo(message);
+    setShowMessageActions(false);
+  };
+
+  // Yanıtlamayı iptal et
+  const cancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  // İletme başlat
+  const startForward = (message: Message) => {
+    setForwardingMessage(message);
+    setShowMessageActions(false);
+    setShowForwardModal(true);
+    loadForwardTargets();
+  };
+
+  // Mesaj ilet
+  const handleForward = async (targetId: string, targetType: 'group' | 'user') => {
+    if (!forwardingMessage) return;
+    
+    try {
+      if (targetType === 'user') {
+        // Özel mesaj olarak ilet
+        await api.post('/api/private-messages', {
+          receiverId: targetId,
+          content: `📨 İletilen mesaj:\n\n${forwardingMessage.content}`,
+          type: forwardingMessage.type || 'text',
+          mediaUrl: forwardingMessage.mediaUrl,
+        });
+      } else {
+        // Grup mesajı olarak ilet
+        await subgroupApi.sendMessage(targetId, {
+          content: `📨 İletilen mesaj:\n\n${forwardingMessage.content}`,
+          type: forwardingMessage.type || 'text',
+          mediaUrl: forwardingMessage.mediaUrl,
+        });
+      }
+      
+      Alert.alert('Başarılı', 'Mesaj iletildi');
+      setShowForwardModal(false);
+      setForwardingMessage(null);
+    } catch (error) {
+      console.error('Error forwarding message:', error);
+      Alert.alert('Hata', 'Mesaj iletilemedi');
+    }
+  };
+
   // @mention için text değişikliği
   const handleTextChange = (text: string) => {
     setInputText(text);
     
-    // @ karakterinden sonra arama yap
     const lastAtIndex = text.lastIndexOf('@');
     if (lastAtIndex !== -1) {
       const afterAt = text.slice(lastAtIndex + 1);
-      // Boşluk yoksa mention araması aktif
       if (!afterAt.includes(' ')) {
         setMentionSearch(afterAt);
         setShowMentionList(true);
@@ -308,10 +423,8 @@ export default function GroupChatScreen() {
   };
 
   const handleLongPressMessage = (message: Message) => {
-    if (message.senderId === user?.uid || isGroupAdmin) {
-      setSelectedMessage(message);
-      setShowMessageActions(true);
-    }
+    setSelectedMessage(message);
+    setShowMessageActions(true);
   };
 
   const pickImage = async () => {
@@ -392,23 +505,19 @@ export default function GroupChatScreen() {
 
   // Mesaj içeriğini @mention highlight'lı şekilde render et
   const renderMessageContent = (content: string, isMe: boolean) => {
-    // @mention pattern: @Ad Soyad formatında
     const mentionRegex = /@([A-Za-zÇçĞğİıÖöŞşÜü]+\s[A-Za-zÇçĞğİıÖöŞşÜü]+)/g;
     const parts = content.split(mentionRegex);
     
     if (parts.length === 1) {
-      // Mention yok, normal render
       return <Text style={[styles.messageText, isMe && styles.myMessageText]}>{content}</Text>;
     }
 
-    // Mention'ları highlight et
     const elements: React.ReactNode[] = [];
     let match;
     let lastIndex = 0;
     const regex = new RegExp(mentionRegex);
     
     while ((match = regex.exec(content)) !== null) {
-      // Mention öncesi text
       if (match.index > lastIndex) {
         elements.push(
           <Text key={`text-${lastIndex}`} style={[styles.messageText, isMe && styles.myMessageText]}>
@@ -416,7 +525,6 @@ export default function GroupChatScreen() {
           </Text>
         );
       }
-      // Mention (highlight)
       elements.push(
         <Text key={`mention-${match.index}`} style={[styles.mentionHighlight, isMe && styles.myMentionHighlight]}>
           {match[0]}
@@ -425,7 +533,6 @@ export default function GroupChatScreen() {
       lastIndex = match.index + match[0].length;
     }
     
-    // Kalan text
     if (lastIndex < content.length) {
       elements.push(
         <Text key={`text-end`} style={[styles.messageText, isMe && styles.myMessageText]}>
@@ -435,6 +542,26 @@ export default function GroupChatScreen() {
     }
 
     return <Text style={[styles.messageText, isMe && styles.myMessageText]}>{elements}</Text>;
+  };
+
+  // Mesaj durumu ikonu
+  const renderMessageStatus = (message: Message, isMe: boolean) => {
+    if (!isMe) return null;
+    
+    const memberCount = subgroup?.members?.length || 0;
+    const readCount = message.readBy?.length || 1;
+    const deliveredCount = message.deliveredTo?.length || 0;
+    
+    // Herkes okudu
+    if (readCount >= memberCount - 1 && memberCount > 1) {
+      return <Ionicons name="checkmark-done" size={14} color="#60a5fa" />;
+    }
+    // İletildi
+    if (deliveredCount > 0) {
+      return <Ionicons name="checkmark-done" size={14} color="rgba(255,255,255,0.6)" />;
+    }
+    // Gönderildi
+    return <Ionicons name="checkmark" size={14} color="rgba(255,255,255,0.6)" />;
   };
 
   const renderMessage = ({ item }: { item: Message }) => {
@@ -467,6 +594,17 @@ export default function GroupChatScreen() {
             </View>
           )}
           {!isMe && <Text style={styles.senderName}>{item.senderName}</Text>}
+          
+          {/* Yanıtlanan mesaj */}
+          {item.replyTo && (
+            <View style={[styles.replyPreview, isMe && styles.myReplyPreview]}>
+              <View style={styles.replyBar} />
+              <View style={styles.replyContent}>
+                <Text style={styles.replyName}>{item.replyTo.senderName}</Text>
+                <Text style={styles.replyText} numberOfLines={2}>{item.replyTo.content}</Text>
+              </View>
+            </View>
+          )}
           
           {item.type === 'image' && item.mediaUrl && (
             <Image source={{ uri: item.mediaUrl }} style={styles.messageImage} resizeMode="cover" />
@@ -501,6 +639,7 @@ export default function GroupChatScreen() {
             {item.edited && (
               <Text style={[styles.editedLabel, isMe && styles.myEditedLabel]}> (düzenlendi)</Text>
             )}
+            {renderMessageStatus(item, isMe)}
           </View>
         </View>
       </TouchableOpacity>
@@ -531,34 +670,27 @@ export default function GroupChatScreen() {
         >
           <View style={styles.actionsModal}>
             <Text style={styles.actionsTitle}>Mesaj İşlemleri</Text>
+            
             {/* Yanıtla */}
             <TouchableOpacity 
               style={styles.actionItem}
-              onPress={() => {
-                if (selectedMessage) {
-                  setReplyingTo(selectedMessage);
-                  setShowMessageActions(false);
-                }
-              }}
+              onPress={() => selectedMessage && startReply(selectedMessage)}
             >
               <Ionicons name="arrow-undo" size={22} color="#10b981" />
               <Text style={styles.actionText}>Yanıtla</Text>
             </TouchableOpacity>
+            
             {/* İlet */}
             <TouchableOpacity 
               style={styles.actionItem}
-              onPress={() => {
-                if (selectedMessage) {
-                  setForwardingMessage(selectedMessage);
-                  setShowForwardModal(true);
-                  setShowMessageActions(false);
-                }
-              }}
+              onPress={() => selectedMessage && startForward(selectedMessage)}
             >
               <Ionicons name="arrow-redo" size={22} color="#8b5cf6" />
               <Text style={styles.actionText}>İlet</Text>
             </TouchableOpacity>
-            {selectedMessage?.type === 'text' && (
+            
+            {/* Düzenle (sadece kendi mesajları ve text tipinde) */}
+            {selectedMessage?.senderId === user?.uid && selectedMessage?.type === 'text' && (
               <TouchableOpacity 
                 style={styles.actionItem}
                 onPress={() => selectedMessage && startEditMessage(selectedMessage)}
@@ -567,22 +699,29 @@ export default function GroupChatScreen() {
                 <Text style={styles.actionText}>Düzenle</Text>
               </TouchableOpacity>
             )}
+            
+            {/* Sabitle (sadece admin) */}
             {isGroupAdmin && (
               <TouchableOpacity 
                 style={styles.actionItem}
                 onPress={() => selectedMessage && handlePinMessage(selectedMessage)}
               >
                 <Ionicons name="pin" size={22} color="#f59e0b" />
-                <Text style={styles.actionText}>Sabitle</Text>
+                <Text style={styles.actionText}>{selectedMessage?.isPinned ? 'Sabitlemeyi Kaldır' : 'Sabitle'}</Text>
               </TouchableOpacity>
             )}
-            <TouchableOpacity 
-              style={[styles.actionItem, styles.deleteAction]}
-              onPress={() => selectedMessage && handleDeleteMessage(selectedMessage.id)}
-            >
-              <Ionicons name="trash" size={22} color="#ef4444" />
-              <Text style={[styles.actionText, styles.deleteText]}>Sil</Text>
-            </TouchableOpacity>
+            
+            {/* Sil (kendi mesajları veya admin) */}
+            {(selectedMessage?.senderId === user?.uid || isGroupAdmin) && (
+              <TouchableOpacity 
+                style={[styles.actionItem, styles.deleteAction]}
+                onPress={() => selectedMessage && handleDeleteMessage(selectedMessage.id)}
+              >
+                <Ionicons name="trash" size={22} color="#ef4444" />
+                <Text style={[styles.actionText, styles.deleteText]}>Sil</Text>
+              </TouchableOpacity>
+            )}
+            
             <TouchableOpacity 
               style={styles.actionItem}
               onPress={() => setShowMessageActions(false)}
@@ -592,6 +731,59 @@ export default function GroupChatScreen() {
             </TouchableOpacity>
           </View>
         </TouchableOpacity>
+      </Modal>
+
+      {/* Forward Modal */}
+      <Modal
+        visible={showForwardModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowForwardModal(false)}
+      >
+        <View style={styles.forwardModalOverlay}>
+          <View style={styles.forwardModalContent}>
+            <View style={styles.forwardModalHeader}>
+              <Text style={styles.forwardModalTitle}>Mesajı İlet</Text>
+              <TouchableOpacity onPress={() => setShowForwardModal(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            
+            {/* İletilecek mesaj önizleme */}
+            {forwardingMessage && (
+              <View style={styles.forwardPreview}>
+                <Ionicons name="arrow-redo" size={16} color="#8b5cf6" />
+                <Text style={styles.forwardPreviewText} numberOfLines={2}>
+                  {forwardingMessage.content}
+                </Text>
+              </View>
+            )}
+            
+            {loadingForwardTargets ? (
+              <ActivityIndicator size="large" color="#6366f1" style={{ marginTop: 20 }} />
+            ) : (
+              <ScrollView style={styles.forwardTargetList}>
+                {forwardTargets.map((target) => (
+                  <TouchableOpacity
+                    key={target.id}
+                    style={styles.forwardTargetItem}
+                    onPress={() => handleForward(target.id, target.type)}
+                  >
+                    <View style={styles.forwardTargetAvatar}>
+                      <Ionicons 
+                        name={target.type === 'group' ? 'people' : 'person'} 
+                        size={20} 
+                        color="#6366f1" 
+                      />
+                    </View>
+                    <Text style={styles.forwardTargetName}>{target.name}</Text>
+                    <Ionicons name="send" size={18} color="#6b7280" />
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
       </Modal>
 
       {/* Header */}
@@ -704,6 +896,22 @@ export default function GroupChatScreen() {
           </View>
         )}
 
+        {/* Reply indicator */}
+        {replyingTo && (
+          <View style={styles.replyBar}>
+            <View style={styles.replyBarContent}>
+              <Ionicons name="arrow-undo" size={18} color="#10b981" />
+              <View style={styles.replyBarInfo}>
+                <Text style={styles.replyBarName}>{replyingTo.senderName}</Text>
+                <Text style={styles.replyBarText} numberOfLines={1}>{replyingTo.content}</Text>
+              </View>
+            </View>
+            <TouchableOpacity onPress={cancelReply}>
+              <Ionicons name="close" size={22} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Input */}
         <View style={styles.inputContainer}>
           <TouchableOpacity 
@@ -741,8 +949,8 @@ export default function GroupChatScreen() {
               </View>
             )}
             <TextInput
-              style={[styles.input, editingMessage && styles.inputEditing]}
-              placeholder={editingMessage ? "Mesajı düzenle..." : "Mesaj yaz... (@mention için @ kullanın)"}
+              style={[styles.input, editingMessage && styles.inputEditing, replyingTo && styles.inputReplying]}
+              placeholder={editingMessage ? "Mesajı düzenle..." : replyingTo ? "Yanıtınızı yazın..." : "Mesaj yaz... (@mention için @ kullanın)"}
               placeholderTextColor="#6b7280"
               value={inputText}
               onChangeText={handleTextChange}
@@ -793,7 +1001,7 @@ const styles = StyleSheet.create({
   myMessageText: { color: '#fff' },
   mentionHighlight: { color: '#60a5fa', fontWeight: '600', backgroundColor: 'rgba(96, 165, 250, 0.15)', borderRadius: 4, paddingHorizontal: 2 },
   myMentionHighlight: { color: '#93c5fd', backgroundColor: 'rgba(147, 197, 253, 0.2)' },
-  messageFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  messageFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 4, gap: 4 },
   messageTime: { color: '#9ca3af', fontSize: 11 },
   myMessageTime: { color: 'rgba(255, 255, 255, 0.7)' },
   editedLabel: { color: '#6b7280', fontSize: 10, fontStyle: 'italic' },
@@ -803,6 +1011,19 @@ const styles = StyleSheet.create({
   messageVideo: { width: '100%', height: '100%' },
   fileAttachment: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(99, 102, 241, 0.1)', padding: 12, borderRadius: 12, marginBottom: 8, gap: 8 },
   fileName: { color: '#e5e7eb', fontSize: 14, flex: 1 },
+  // Reply Preview styles
+  replyPreview: { backgroundColor: 'rgba(0,0,0,0.2)', borderRadius: 8, padding: 8, marginBottom: 8, flexDirection: 'row' },
+  myReplyPreview: { backgroundColor: 'rgba(255,255,255,0.1)' },
+  replyBar: { width: 3, backgroundColor: '#10b981', borderRadius: 2, marginRight: 8 },
+  replyContent: { flex: 1 },
+  replyName: { color: '#10b981', fontSize: 12, fontWeight: '600', marginBottom: 2 },
+  replyText: { color: '#9ca3af', fontSize: 13 },
+  // Reply Bar (Input area)
+  replyBarContent: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 8 },
+  replyBarInfo: { flex: 1 },
+  replyBarName: { color: '#10b981', fontSize: 13, fontWeight: '600' },
+  replyBarText: { color: '#9ca3af', fontSize: 13 },
+  inputReplying: { borderColor: '#10b981', borderWidth: 1 },
   emptyState: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 64 },
   emptyText: { color: '#9ca3af', fontSize: 16, marginTop: 16 },
   emptySubtext: { color: '#6b7280', fontSize: 13, marginTop: 8 },
@@ -841,4 +1062,15 @@ const styles = StyleSheet.create({
   actionText: { color: '#e5e7eb', fontSize: 16 },
   deleteAction: { borderTopWidth: 1, borderTopColor: '#374151', marginTop: 8, paddingTop: 16 },
   deleteText: { color: '#ef4444' },
+  // Forward Modal
+  forwardModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' },
+  forwardModalContent: { backgroundColor: '#1f2937', borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%', paddingBottom: 40 },
+  forwardModalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#374151' },
+  forwardModalTitle: { color: '#fff', fontSize: 18, fontWeight: '600' },
+  forwardPreview: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#111827', margin: 16, padding: 12, borderRadius: 12, gap: 8 },
+  forwardPreviewText: { color: '#9ca3af', fontSize: 14, flex: 1 },
+  forwardTargetList: { paddingHorizontal: 16 },
+  forwardTargetItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#374151' },
+  forwardTargetAvatar: { width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(99, 102, 241, 0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  forwardTargetName: { flex: 1, color: '#fff', fontSize: 16 },
 });
