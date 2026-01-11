@@ -37,14 +37,28 @@ export default function LoginScreen() {
     } catch (error: any) {
       console.error('Login error:', error);
       let message = 'Giriş yapılamadı';
-      if (error.code === 'auth/user-not-found') {
-        message = 'Kullanıcı bulunamadı';
-      } else if (error.code === 'auth/wrong-password') {
-        message = 'Yanlış şifre';
-      } else if (error.code === 'auth/invalid-email') {
+      
+      // Firebase hata kodlarına göre mesaj
+      const errorCode = error?.code || '';
+      const errorMessage = error?.message || '';
+      
+      if (errorCode === 'auth/user-not-found') {
+        message = 'Bu email ile kayıtlı kullanıcı bulunamadı';
+      } else if (errorCode === 'auth/wrong-password' || errorCode === 'auth/invalid-credential') {
+        message = 'Email veya şifre hatalı';
+      } else if (errorCode === 'auth/invalid-email') {
         message = 'Geçersiz email adresi';
+      } else if (errorCode === 'auth/too-many-requests') {
+        message = 'Çok fazla deneme yaptınız. Lütfen birkaç dakika bekleyin.';
+      } else if (errorCode === 'auth/network-request-failed') {
+        message = 'İnternet bağlantınızı kontrol edin';
+      } else if (errorMessage.includes('unknown error') || errorMessage.includes('Web server')) {
+        message = 'Sunucu bağlantısında geçici bir sorun var. Lütfen tekrar deneyin.';
+      } else if (errorCode === 'auth/user-disabled') {
+        message = 'Bu hesap devre dışı bırakılmış';
       }
-      Alert.alert('Hata', message);
+      
+      Alert.alert('Giriş Hatası', message);
     } finally {
       setLoading(false);
     }
