@@ -34,7 +34,7 @@ export default function MyPostsScreen() {
 
   const loadPosts = useCallback(async () => {
     try {
-      const response = await api.get('/my-posts');
+      const response = await api.get('/api/my-posts');
       setPosts(response.data);
     } catch (error) {
       console.error('Error loading posts:', error);
@@ -64,8 +64,9 @@ export default function MyPostsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await api.delete(`/posts/${postId}`);
+              await api.delete(`/api/posts/${postId}`);
               setPosts(posts.filter(p => p.id !== postId));
+              Alert.alert('Başarılı', 'Gönderi silindi');
             } catch (error) {
               Alert.alert('Hata', 'Gönderi silinemedi');
             }
