@@ -1049,6 +1049,8 @@ async def create_post(post: dict, current_user: dict = Depends(get_current_user)
         "userProfileImage": user.get('profileImageUrl'),
         "content": post['content'],
         "imageUrl": post.get('imageUrl'),
+        "location": post.get('location'),
+        "mentions": post.get('mentions', []),
         "likes": [],
         "comments": [],
         "shares": 0,
@@ -1056,6 +1058,18 @@ async def create_post(post: dict, current_user: dict = Depends(get_current_user)
     }
 
     await db.posts.insert_one(new_post)
+    
+    # Etiketlenen kullanıcılara bildirim gönder
+    from routes.notifications import send_push_notification
+    for mentioned_uid in post.get('mentions', []):
+        if mentioned_uid != current_user['uid']:
+            await send_push_notification(
+                db,
+                mentioned_uid,
+                f"{user['firstName']} sizi etiketledi",
+                f"{post['content'][:100]}...",
+                {"type": "mention", "postId": new_post['id']}
+            )
     
     if '_id' in new_post:
         del new_post['_id']
