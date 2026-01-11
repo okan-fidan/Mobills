@@ -108,6 +108,9 @@ export default function GroupChatScreen() {
   const [showPollModal, setShowPollModal] = useState(false);
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
+  // Akıllı yanıtlar
+  const [smartReplies, setSmartReplies] = useState<string[]>([]);
+  const [loadingSmartReplies, setLoadingSmartReplies] = useState(false);
   
   const flatListRef = useRef<FlatList>(null);
   const { user, userProfile } = useAuth();
