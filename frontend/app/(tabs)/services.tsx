@@ -45,12 +45,7 @@ export default function ServicesScreen() {
   const [services, setServices] = useState<Service[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState('');
-  const [creating, setCreating] = useState(false);
-  const { userProfile, user } = useAuth();
+  const { user } = useAuth();
   const router = useRouter();
 
   const handleContactService = (service: Service) => {
@@ -82,28 +77,6 @@ export default function ServicesScreen() {
     setRefreshing(true);
     loadServices();
   }, [loadServices]);
-
-  const handleCreateService = async () => {
-    if (!title || !description || !category) {
-      Alert.alert('Hata', 'Lütfen tüm alanları doldurun');
-      return;
-    }
-
-    setCreating(true);
-    try {
-      const response = await serviceApi.create({ title, description, category });
-      setServices([response.data, ...services]);
-      setModalVisible(false);
-      setTitle('');
-      setDescription('');
-      setCategory('');
-    } catch (error) {
-      console.error('Error creating service:', error);
-      Alert.alert('Hata', 'Hizmet oluşturulamadı');
-    } finally {
-      setCreating(false);
-    }
-  };
 
   const formatTime = (timestamp: string) => {
     try {
