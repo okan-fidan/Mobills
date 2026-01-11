@@ -54,11 +54,20 @@ export default function MessagesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('all');
+  const [error, setError] = useState<string | null>(null);
   const { userProfile, user } = useAuth();
   const router = useRouter();
 
   const loadData = useCallback(async () => {
+    // Kullanıcı giriş yapmamışsa veri yükleme
+    if (!user) {
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
     try {
+      setError(null);
       const communitiesRes = await api.get('/communities');
       
       // Üye olunan topluluklar
@@ -91,21 +100,29 @@ export default function MessagesScreen() {
             }
           }
         } catch (e) {
-          console.log('Error loading subgroups');
+          // Sessizce devam et
         }
       }
       setGroupChats(myGroups);
-    } catch (error) {
-      console.log('Error loading data:', error);
+    } catch (error: any) {
+      console.log('Error loading data:', error?.message || error);
+      if (error?.response?.status === 403 || error?.response?.status === 401) {
+        setError('Oturum süresi dolmuş olabilir. Lütfen tekrar giriş yapın.');
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    // User değiştiğinde veya hazır olduğunda veri yükle
+    if (user) {
+      loadData();
+    } else {
+      setLoading(false);
+    }
+  }, [user, loadData]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
