@@ -2418,6 +2418,11 @@ from routes.ai_smart_replies import setup_ai_routes
 ai_router = setup_ai_routes(db, get_current_user)
 api_router.include_router(ai_router)
 
+# Import and setup security routes
+from routes.security import setup_security_routes
+security_api_router = setup_security_routes(db, get_current_user)
+api_router.include_router(security_api_router)
+
 # Include the router in the main app
 app.include_router(api_router)
 
