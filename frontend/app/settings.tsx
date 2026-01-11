@@ -46,10 +46,24 @@ export default function SettingsScreen() {
   
   // 2FA state
   const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [show2FAModal, setShow2FAModal] = useState(false);
+  const [verificationCode, setVerificationCode] = useState('');
+  const [pendingCode, setPendingCode] = useState('');
+  const [verifying2FA, setVerifying2FA] = useState(false);
 
   useEffect(() => {
     loadSettings();
+    load2FAStatus();
   }, []);
+
+  const load2FAStatus = async () => {
+    try {
+      const response = await api.get('/auth/2fa/status');
+      setTwoFactorEnabled(response.data.enabled || false);
+    } catch (error) {
+      console.error('Error loading 2FA status:', error);
+    }
+  };
 
   const loadSettings = async () => {
     try {
