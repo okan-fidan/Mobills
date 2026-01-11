@@ -91,11 +91,21 @@ export default function GroupChatScreen() {
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [isMultipleChoice, setIsMultipleChoice] = useState(false);
+  // @mention için state'ler
+  const [showMentionList, setShowMentionList] = useState(false);
+  const [mentionSearch, setMentionSearch] = useState('');
+  const [groupMembers, setGroupMembers] = useState<{uid: string; firstName: string; lastName: string}[]>([]);
   const flatListRef = useRef<FlatList>(null);
   const { user, userProfile } = useAuth();
   const router = useRouter();
 
   const isGroupAdmin = subgroup?.groupAdmins?.includes(user?.uid || '') || false;
+
+  // Filtrelenmiş üye listesi (@mention için)
+  const filteredMembers = groupMembers.filter(member => {
+    const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
+    return fullName.includes(mentionSearch.toLowerCase());
+  });
 
   const loadData = useCallback(async () => {
     if (!groupId) return;
