@@ -48,6 +48,14 @@ interface Message {
   fileName?: string;
   edited?: boolean;
   isPinned?: boolean;
+  // Reply feature
+  replyTo?: {
+    id: string;
+    content: string;
+    senderName: string;
+  };
+  // Message status
+  status?: 'sent' | 'delivered' | 'read';
 }
 
 interface Poll {
