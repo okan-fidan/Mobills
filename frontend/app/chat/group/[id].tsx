@@ -172,6 +172,44 @@ export default function GroupChatScreen() {
     return () => clearInterval(interval);
   }, [loadData]);
 
+  // Son mesaj değiştiğinde akıllı yanıtları yükle
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && lastMessage.senderId !== user?.uid && lastMessage.type === 'text') {
+      loadSmartReplies(lastMessage.content);
+    } else {
+      setSmartReplies([]);
+    }
+  }, [messages]);
+
+  // Akıllı yanıtları yükle
+  const loadSmartReplies = async (messageContent: string) => {
+    if (!messageContent || messageContent.length < 3) {
+      setSmartReplies([]);
+      return;
+    }
+    
+    setLoadingSmartReplies(true);
+    try {
+      const response = await api.post('/ai/smart-replies', {
+        messageContent,
+        conversationType: 'group',
+      });
+      setSmartReplies(response.data.replies || []);
+    } catch (error) {
+      console.error('Error loading smart replies:', error);
+      setSmartReplies([]);
+    } finally {
+      setLoadingSmartReplies(false);
+    }
+  };
+
+  // Akıllı yanıtı seç ve gönder
+  const handleSelectSmartReply = (reply: string) => {
+    setInputText(reply);
+    setSmartReplies([]);
+  };
+
   // İletme hedeflerini yükle
   const loadForwardTargets = async () => {
     setLoadingForwardTargets(true);
