@@ -49,9 +49,7 @@ export default function RegisterProfileScreen() {
   };
 
   const handleSubmit = async () => {
-    console.log('handleSubmit called with:', { firstName, lastName, city, phone, occupation });
     if (!firstName || !lastName || !city) {
-      console.log('Validation failed - missing fields:', { firstName, lastName, city });
       Alert.alert('Hata', 'Lütfen zorunlu alanları doldurun');
       return;
     }
