@@ -128,13 +128,9 @@ export default function MessagesScreen() {
   }, [user]);
 
   useEffect(() => {
-    // User değiştiğinde veya hazır olduğunda veri yükle
-    if (user) {
-      loadData();
-    } else {
-      setLoading(false);
-    }
-  }, [user, loadData]);
+    // Her durumda veri yükle (user olsa da olmasa da)
+    loadData();
+  }, [loadData]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
