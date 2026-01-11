@@ -47,6 +47,18 @@ interface Message {
   mediaUrl?: string;
   fileName?: string;
   edited?: boolean;
+  isPinned?: boolean;
+}
+
+interface Poll {
+  id: string;
+  question: string;
+  options: { id: string; text: string; votes: string[] }[];
+  createdBy: string;
+  createdByName: string;
+  createdAt: string;
+  isMultipleChoice: boolean;
+  isAnonymous: boolean;
 }
 
 interface SubGroup {
@@ -54,6 +66,7 @@ interface SubGroup {
   name: string;
   memberCount: number;
   communityName?: string;
+  groupAdmins?: string[];
 }
 
 export default function GroupChatScreen() {
