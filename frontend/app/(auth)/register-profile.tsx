@@ -164,21 +164,47 @@ export default function RegisterProfileScreen() {
               />
             </View>
 
-            <TouchableOpacity
-              style={[styles.button, loading && styles.buttonDisabled]}
-              onPress={() => {
-                console.log('Button pressed!');
-                handleSubmit();
-              }}
-              disabled={loading}
-              activeOpacity={0.8}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.buttonText}>Tamamla</Text>
-              )}
-            </TouchableOpacity>
+            {Platform.OS === 'web' ? (
+              <button
+                style={{
+                  backgroundColor: '#6366f1',
+                  height: 56,
+                  borderRadius: 12,
+                  border: 'none',
+                  cursor: 'pointer',
+                  width: '100%',
+                  marginTop: 16,
+                  opacity: loading ? 0.7 : 1,
+                }}
+                onClick={() => {
+                  console.log('Web button clicked!');
+                  handleSubmit();
+                }}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Tamamla</Text>
+                )}
+              </button>
+            ) : (
+              <TouchableOpacity
+                style={[styles.button, loading && styles.buttonDisabled]}
+                onPress={() => {
+                  console.log('Button pressed!');
+                  handleSubmit();
+                }}
+                disabled={loading}
+                activeOpacity={0.8}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Tamamla</Text>
+                )}
+              </TouchableOpacity>
+            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
