@@ -135,11 +135,17 @@ export default function CreatePostScreen() {
             <Ionicons name="image" size={24} color="#10b981" />
             <Text style={styles.toolbarText}>Fotoğraf</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton}>
+          <TouchableOpacity 
+            style={styles.toolbarButton}
+            onPress={() => Alert.alert('Konum', 'Konum ekleme özelliği yakında aktif olacak')}
+          >
             <Ionicons name="location" size={24} color="#f59e0b" />
             <Text style={styles.toolbarText}>Konum</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.toolbarButton}>
+          <TouchableOpacity 
+            style={styles.toolbarButton}
+            onPress={() => Alert.alert('Etiketle', 'Kişi etiketleme özelliği yakında aktif olacak')}
+          >
             <Ionicons name="pricetag" size={24} color="#6366f1" />
             <Text style={styles.toolbarText}>Etiketle</Text>
           </TouchableOpacity>
