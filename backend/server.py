@@ -2349,6 +2349,21 @@ api_router.include_router(reviews_router)
 events_router = setup_events_routes(db, get_current_user, check_global_admin)
 api_router.include_router(events_router)
 
+# Import and setup 2FA routes
+from routes.auth_2fa import setup_auth_routes
+auth_router = setup_auth_routes(db, get_current_user)
+api_router.include_router(auth_router)
+
+# Import and setup notifications routes
+from routes.notifications import setup_notifications_routes
+notifications_router = setup_notifications_routes(db, get_current_user)
+api_router.include_router(notifications_router)
+
+# Import and setup AI routes
+from routes.ai_smart_replies import setup_ai_routes
+ai_router = setup_ai_routes(db, get_current_user)
+api_router.include_router(ai_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
