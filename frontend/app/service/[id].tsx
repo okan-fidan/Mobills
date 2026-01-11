@@ -83,8 +83,8 @@ export default function ServiceDetailScreen() {
     if (!id) return;
     try {
       const [servicesRes, reviewsRes] = await Promise.all([
-        api.get('/api/services'),
-        api.get(`/api/reviews/service/${id}`),
+        api.get('/services'),
+        api.get(`/reviews/service/${id}`),
       ]);
       
       const foundService = servicesRes.data.find((s: Service) => s.id === id);
