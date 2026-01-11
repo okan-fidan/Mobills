@@ -2329,9 +2329,6 @@ async def typing(sid, data):
             'isTyping': is_typing
         }, room=room, skip_sid=sid)
 
-# Include the router in the main app
-app.include_router(api_router)
-
 # Import and setup additional routes
 from routes.badges import setup_badges_routes, badges_router
 from routes.reviews import setup_reviews_routes, reviews_router
@@ -2363,6 +2360,9 @@ api_router.include_router(notifications_router)
 from routes.ai_smart_replies import setup_ai_routes
 ai_router = setup_ai_routes(db, get_current_user)
 api_router.include_router(ai_router)
+
+# Include the router in the main app
+app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
