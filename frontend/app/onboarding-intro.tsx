@@ -1,11 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Dimensions,
   TouchableOpacity,
-  ScrollView,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,7 +20,7 @@ interface OnboardingSlide {
   icon: keyof typeof Ionicons.glyphMap;
   title: string;
   description: string;
-  gradient: string[];
+  color: string;
 }
 
 const slides: OnboardingSlide[] = [
@@ -29,40 +29,40 @@ const slides: OnboardingSlide[] = [
     icon: 'people',
     title: 'Topluluklara Katıl',
     description: 'Şehrindeki girişimcilerle tanış, deneyimlerini paylaş ve yeni bağlantılar kur.',
-    gradient: ['#6366f1', '#8b5cf6'],
+    color: '#6366f1',
   },
   {
     id: '2',
     icon: 'chatbubbles',
     title: 'Anlık Mesajlaşma',
     description: 'Grup sohbetleri ve özel mesajlarla iletişimde kal. Fotoğraf, video ve dosya paylaş.',
-    gradient: ['#10b981', '#059669'],
+    color: '#10b981',
   },
   {
     id: '3',
     icon: 'briefcase',
     title: 'Hizmetlerini Tanıt',
     description: 'Sunduğun hizmetleri paylaş, değerlendirmeler al ve müşteri portföyünü genişlet.',
-    gradient: ['#f59e0b', '#d97706'],
+    color: '#f59e0b',
   },
   {
     id: '4',
     icon: 'calendar',
     title: 'Etkinliklere Katıl',
     description: 'Topluluk etkinliklerini takip et, networking fırsatlarını kaçırma.',
-    gradient: ['#ec4899', '#db2777'],
+    color: '#ec4899',
   },
 ];
 
 export default function OnboardingScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const scrollViewRef = useRef<ScrollView>(null);
   const router = useRouter();
+  const flatListRef = React.useRef<FlatList>(null);
 
   const handleNext = () => {
     if (currentIndex < slides.length - 1) {
       const nextIndex = currentIndex + 1;
-      scrollViewRef.current?.scrollTo({ x: nextIndex * width, animated: true });
+      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
       setCurrentIndex(nextIndex);
     } else {
       completeOnboarding();
@@ -83,15 +83,25 @@ export default function OnboardingScreen() {
     }
   };
 
-  const handleScroll = (event: any) => {
-    const contentOffsetX = event.nativeEvent.contentOffset.x;
-    const index = Math.round(contentOffsetX / width);
-    if (index !== currentIndex && index >= 0 && index < slides.length) {
-      setCurrentIndex(index);
+  const onViewableItemsChanged = React.useCallback(({ viewableItems }: any) => {
+    if (viewableItems.length > 0) {
+      setCurrentIndex(viewableItems[0].index);
     }
+  }, []);
+
+  const viewabilityConfig = {
+    itemVisiblePercentThreshold: 50,
   };
 
-  const currentSlide = slides[currentIndex];
+  const renderSlide = ({ item }: { item: OnboardingSlide }) => (
+    <View style={styles.slide}>
+      <View style={[styles.iconContainer, { backgroundColor: item.color }]}>
+        <Ionicons name={item.icon} size={80} color="#fff" />
+      </View>
+      <Text style={styles.title}>{item.title}</Text>
+      <Text style={styles.description}>{item.description}</Text>
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -100,30 +110,24 @@ export default function OnboardingScreen() {
         <Text style={styles.skipText}>Geç</Text>
       </TouchableOpacity>
 
-      {/* Content */}
-      <View style={styles.contentContainer}>
-        <ScrollView
-          ref={scrollViewRef}
+      {/* Slides */}
+      <View style={styles.slidesContainer}>
+        <FlatList
+          ref={flatListRef}
+          data={slides}
+          renderItem={renderSlide}
+          keyExtractor={(item) => item.id}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
-          onMomentumScrollEnd={handleScroll}
-          scrollEventThrottle={16}
-          contentContainerStyle={styles.scrollContent}
-        >
-          {slides.map((slide) => (
-            <View key={slide.id} style={styles.slide}>
-              <LinearGradient
-                colors={slide.gradient as [string, string]}
-                style={styles.iconContainer}
-              >
-                <Ionicons name={slide.icon} size={80} color="#fff" />
-              </LinearGradient>
-              <Text style={styles.title}>{slide.title}</Text>
-              <Text style={styles.description}>{slide.description}</Text>
-            </View>
-          ))}
-        </ScrollView>
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={viewabilityConfig}
+          getItemLayout={(data, index) => ({
+            length: width,
+            offset: width * index,
+            index,
+          })}
+        />
       </View>
 
       {/* Bottom Section */}
@@ -146,6 +150,8 @@ export default function OnboardingScreen() {
           <LinearGradient
             colors={['#6366f1', '#8b5cf6']}
             style={styles.nextButtonGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
           >
             {currentIndex === slides.length - 1 ? (
               <Text style={styles.nextButtonText}>Başla</Text>
@@ -179,15 +185,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
-  contentContainer: {
+  slidesContainer: {
     flex: 1,
-    justifyContent: 'center',
-  },
-  scrollContent: {
-    alignItems: 'center',
   },
   slide: {
     width: width,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
@@ -199,11 +202,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 48,
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 10,
   },
   title: {
     fontSize: 28,
