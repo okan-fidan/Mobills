@@ -155,7 +155,7 @@ export default function ProfileScreen() {
       icon: 'notifications-outline',
       label: 'Bildirimler',
       subtitle: 'Tüm bildirimleriniz',
-      onPress: () => router.push('/notifications'),
+      onPress: () => router.push('/all-notifications'),
       color: '#f59e0b',
     },
     {
