@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { Platform } from 'react-native';
 import { auth } from '../config/firebase';
 import { 
   signInWithEmailAndPassword, 
@@ -8,6 +9,12 @@ import {
   User
 } from 'firebase/auth';
 import { userApi } from '../services/api';
+import { 
+  registerForPushNotificationsAsync, 
+  savePushToken,
+  addNotificationReceivedListener,
+  addNotificationResponseReceivedListener
+} from '../services/notifications';
 
 interface UserProfile {
   uid: string;
