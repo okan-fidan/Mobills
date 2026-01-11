@@ -478,7 +478,7 @@ export default function GroupChatScreen() {
           )}
           
           {item.content ? (
-            <Text style={[styles.messageText, isMe && styles.myMessageText]}>{item.content}</Text>
+            renderMessageContent(item.content, isMe)
           ) : null}
           
           <View style={styles.messageFooter}>
