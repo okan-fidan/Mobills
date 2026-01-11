@@ -436,12 +436,21 @@ export default function GroupChatScreen() {
         <View style={styles.groupIcon}>
           <Ionicons name="chatbubbles" size={20} color="#6366f1" />
         </View>
-        <View style={styles.headerInfo}>
+        <TouchableOpacity 
+          style={styles.headerInfo}
+          onPress={() => router.push(`/chat/group/menu/${groupId}`)}
+        >
           <Text style={styles.headerName}>{subgroup?.name}</Text>
           <Text style={styles.headerSubtitle}>
             {subgroup?.memberCount} üye {subgroup?.communityName && `• ${subgroup.communityName}`}
           </Text>
-        </View>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.menuButton}
+          onPress={() => router.push(`/chat/group/menu/${groupId}`)}
+        >
+          <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
 
       {/* Messages */}
