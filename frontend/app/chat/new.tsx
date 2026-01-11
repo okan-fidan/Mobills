@@ -34,10 +34,15 @@ export default function NewChatScreen() {
   const router = useRouter();
 
   useEffect(() => {
-    loadUsers();
-  }, []);
+    // User hazır olduktan sonra kullanıcıları yükle
+    if (user) {
+      loadUsers();
+    }
+  }, [user]);
 
   const loadUsers = async () => {
+    if (!user) return;
+    
     try {
       const response = await userListApi.getAll();
       const otherUsers = response.data.filter((u: User) => u.uid !== user?.uid);
