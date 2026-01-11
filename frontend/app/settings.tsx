@@ -360,7 +360,7 @@ export default function SettingsScreen() {
           <SettingItem
             icon="person"
             title="Profil Düzenle"
-            onPress={() => router.push('/(tabs)/profile')}
+            onPress={() => router.push('/profile/edit')}
           />
           
           <SettingItem
