@@ -5,8 +5,7 @@ import {
   StyleSheet,
   Dimensions,
   TouchableOpacity,
-  FlatList,
-  Animated,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -18,7 +17,7 @@ const { width, height } = Dimensions.get('window');
 
 interface OnboardingSlide {
   id: string;
-  icon: string;
+  icon: keyof typeof Ionicons.glyphMap;
   title: string;
   description: string;
   gradient: string[];
@@ -57,14 +56,14 @@ const slides: OnboardingSlide[] = [
 
 export default function OnboardingScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const flatListRef = useRef<FlatList>(null);
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
   const router = useRouter();
 
   const handleNext = () => {
     if (currentIndex < slides.length - 1) {
-      flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
-      setCurrentIndex(currentIndex + 1);
+      const nextIndex = currentIndex + 1;
+      scrollViewRef.current?.scrollTo({ x: nextIndex * width, animated: true });
+      setCurrentIndex(nextIndex);
     } else {
       completeOnboarding();
     }
@@ -84,41 +83,38 @@ export default function OnboardingScreen() {
     }
   };
 
-  const renderSlide = ({ item, index }: { item: OnboardingSlide; index: number }) => (
-    <View style={styles.slide}>
+  const handleScroll = (event: any) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(contentOffsetX / width);
+    if (index !== currentIndex && index >= 0 && index < slides.length) {
+      setCurrentIndex(index);
+    }
+  };
+
+  const renderSlide = (slide: OnboardingSlide, index: number) => (
+    <View key={slide.id} style={styles.slide}>
       <LinearGradient
-        colors={item.gradient}
+        colors={slide.gradient as [string, string]}
         style={styles.iconContainer}
       >
-        <Ionicons name={item.icon as any} size={80} color="#fff" />
+        <Ionicons name={slide.icon} size={80} color="#fff" />
       </LinearGradient>
-      <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.description}>{item.description}</Text>
+      <Text style={styles.title}>{slide.title}</Text>
+      <Text style={styles.description}>{slide.description}</Text>
     </View>
   );
 
   const renderDots = () => (
     <View style={styles.dotsContainer}>
-      {slides.map((_, index) => {
-        const inputRange = [(index - 1) * width, index * width, (index + 1) * width];
-        const dotWidth = scrollX.interpolate({
-          inputRange,
-          outputRange: [8, 24, 8],
-          extrapolate: 'clamp',
-        });
-        const opacity = scrollX.interpolate({
-          inputRange,
-          outputRange: [0.4, 1, 0.4],
-          extrapolate: 'clamp',
-        });
-
-        return (
-          <Animated.View
-            key={index}
-            style={[styles.dot, { width: dotWidth, opacity }]}
-          />
-        );
-      })}
+      {slides.map((_, index) => (
+        <View
+          key={index}
+          style={[
+            styles.dot,
+            currentIndex === index && styles.dotActive,
+          ]}
+        />
+      ))}
     </View>
   );
 
@@ -130,24 +126,17 @@ export default function OnboardingScreen() {
       </TouchableOpacity>
 
       {/* Slides */}
-      <Animated.FlatList
-        ref={flatListRef}
-        data={slides}
-        renderItem={renderSlide}
-        keyExtractor={(item) => item.id}
+      <ScrollView
+        ref={scrollViewRef}
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: false }
-        )}
-        onMomentumScrollEnd={(event) => {
-          const index = Math.round(event.nativeEvent.contentOffset.x / width);
-          setCurrentIndex(index);
-        }}
+        onMomentumScrollEnd={handleScroll}
         scrollEventThrottle={16}
-      />
+        style={styles.scrollView}
+      >
+        {slides.map((slide, index) => renderSlide(slide, index))}
+      </ScrollView>
 
       {/* Bottom Section */}
       <View style={styles.bottomSection}>
@@ -190,8 +179,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
   },
+  scrollView: {
+    flex: 1,
+  },
   slide: {
-    width,
+    width: width,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 40,
@@ -234,10 +226,15 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   dot: {
+    width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#374151',
     marginHorizontal: 4,
+  },
+  dotActive: {
+    width: 24,
+    backgroundColor: '#6366f1',
   },
   nextButton: {
     width: '100%',
