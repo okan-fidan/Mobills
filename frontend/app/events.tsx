@@ -170,7 +170,7 @@ export default function EventsScreen() {
 
   const handleLeaveEvent = async (eventId: string) => {
     try {
-      await api.post(`/api/events/${eventId}/leave`);
+      await api.post(`/events/${eventId}/leave`);
       setEvents(events.map(e => 
         e.id === eventId 
           ? { ...e, isAttending: false, attendeeCount: Math.max((e.attendeeCount || 1) - 1, 0) }
