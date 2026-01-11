@@ -162,15 +162,22 @@ export default function ProfileScreen() {
       icon: 'shield-checkmark-outline',
       label: 'Gizlilik ve Güvenlik',
       subtitle: 'Hesap güvenliği',
-      onPress: () => Alert.alert('Gizlilik ve Güvenlik', 'Hesabınız Firebase Authentication ile korunmaktadır.'),
+      onPress: () => router.push('/privacy-security'),
       color: '#8b5cf6',
     },
     {
       icon: 'help-circle-outline',
       label: 'Yardım ve Destek',
       subtitle: 'SSS ve iletişim',
-      onPress: () => Alert.alert('Yardım ve Destek', 'Sorularınız için: destek@networksolution.com'),
+      onPress: () => router.push('/help'),
       color: '#ec4899',
+    },
+    {
+      icon: 'information-circle-outline',
+      label: 'Hakkımızda',
+      subtitle: 'Uygulama bilgileri',
+      onPress: () => router.push('/about'),
+      color: '#3b82f6',
     },
   ];
 
