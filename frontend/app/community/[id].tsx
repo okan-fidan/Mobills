@@ -179,6 +179,49 @@ export default function CommunityDetailScreen() {
     return date.toLocaleDateString('tr-TR');
   };
 
+  const handleSendAnnouncement = async () => {
+    if (!announcementText.trim()) {
+      Alert.alert('Hata', 'Lütfen bir duyuru metni girin');
+      return;
+    }
+
+    setSendingAnnouncement(true);
+    try {
+      await communityApi.sendAnnouncement(id!, { content: announcementText.trim() });
+      Alert.alert('Başarılı', 'Duyuru gönderildi');
+      setShowAnnouncementModal(false);
+      setAnnouncementText('');
+      loadAnnouncements();
+    } catch (error: any) {
+      console.error('Error sending announcement:', error);
+      Alert.alert('Hata', error?.response?.data?.detail || 'Duyuru gönderilemedi');
+    } finally {
+      setSendingAnnouncement(false);
+    }
+  };
+
+  const handleDeleteAnnouncement = async (announcementId: string) => {
+    Alert.alert(
+      'Duyuruyu Sil',
+      'Bu duyuruyu silmek istediğinize emin misiniz?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Sil',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await communityApi.deleteAnnouncement(id!, announcementId);
+              loadAnnouncements();
+            } catch (error) {
+              Alert.alert('Hata', 'Duyuru silinemedi');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Alt grup kart durumunu render et
   const renderSubgroupStatus = (subgroup: SubGroup) => {
     if (joiningSubgroup === subgroup.id) {
