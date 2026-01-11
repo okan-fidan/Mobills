@@ -101,23 +101,15 @@ export default function SettingsScreen() {
 
   const toggle2FA = async () => {
     if (!twoFactorEnabled) {
-      // Enable 2FA
-      Alert.alert(
-        'İki Faktörlü Doğrulama',
-        'İki faktörlü doğrulamayı etkinleştirmek için e-posta adresinize bir doğrulama kodu göndereceğiz.',
-        [
-          { text: 'İptal', style: 'cancel' },
-          {
-            text: 'Etkinleştir',
-            onPress: async () => {
-              // Simüle: Gerçek uygulamada backend'e istek atılır
-              setTwoFactorEnabled(true);
-              await AsyncStorage.setItem('2fa_enabled', 'true');
-              Alert.alert('Başarılı', 'İki faktörlü doğrulama etkinleştirildi');
-            },
-          },
-        ]
-      );
+      // Enable 2FA - İlk adım: Kod gönder
+      try {
+        const response = await api.post('/auth/2fa/enable', { method: 'email' });
+        setPendingCode(response.data.demo_code || ''); // Demo için
+        setShow2FAModal(true);
+        Alert.alert('Kod Gönderildi', 'Doğrulama kodu bildirimlerinize gönderildi.');
+      } catch (error: any) {
+        Alert.alert('Hata', error?.response?.data?.detail || '2FA etkinleştirilemedi');
+      }
     } else {
       // Disable 2FA
       Alert.alert(
@@ -129,12 +121,37 @@ export default function SettingsScreen() {
             text: 'Devre Dışı Bırak',
             style: 'destructive',
             onPress: async () => {
-              setTwoFactorEnabled(false);
-              await AsyncStorage.setItem('2fa_enabled', 'false');
+              try {
+                await api.post('/auth/2fa/disable', { code: '000000' });
+                setTwoFactorEnabled(false);
+                Alert.alert('Başarılı', '2FA devre dışı bırakıldı');
+              } catch (error: any) {
+                Alert.alert('Hata', error?.response?.data?.detail || 'İşlem başarısız');
+              }
             },
           },
         ]
       );
+    }
+  };
+
+  const verify2FACode = async () => {
+    if (!verificationCode || verificationCode.length !== 6) {
+      Alert.alert('Hata', 'Lütfen 6 haneli doğrulama kodunu girin');
+      return;
+    }
+
+    setVerifying2FA(true);
+    try {
+      await api.post('/auth/2fa/verify', { code: verificationCode });
+      setTwoFactorEnabled(true);
+      setShow2FAModal(false);
+      setVerificationCode('');
+      Alert.alert('Başarılı', 'İki faktörlü doğrulama etkinleştirildi!');
+    } catch (error: any) {
+      Alert.alert('Hata', error?.response?.data?.detail || 'Kod doğrulanamadı');
+    } finally {
+      setVerifying2FA(false);
     }
   };
 
