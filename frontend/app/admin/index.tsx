@@ -105,6 +105,28 @@ export default function AdminDashboard() {
       route: '/admin/admins',
       color: '#ef4444',
     },
+    {
+      icon: 'flag',
+      title: 'Raporlar',
+      subtitle: 'Kullanıcı ve içerik raporları',
+      route: '/admin/reports',
+      color: '#8b5cf6',
+    },
+    {
+      icon: 'shield',
+      title: 'Güvenlik Logları',
+      subtitle: 'Şüpheli aktiviteleri izle',
+      route: '/admin/security',
+      color: '#ec4899',
+    },
+    {
+      icon: 'globe',
+      title: 'Web Sitesi',
+      subtitle: 'networksolution.com.tr',
+      route: 'https://networksolution.com.tr/',
+      color: '#14b8a6',
+      external: true,
+    },
   ];
 
   return (
