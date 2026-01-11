@@ -156,7 +156,7 @@ export default function EventsScreen() {
 
   const handleJoinEvent = async (eventId: string) => {
     try {
-      await api.post(`/api/events/${eventId}/join`);
+      await api.post(`/events/${eventId}/join`);
       setEvents(events.map(e => 
         e.id === eventId 
           ? { ...e, isAttending: true, attendeeCount: (e.attendeeCount || 0) + 1 }
