@@ -72,6 +72,11 @@ export default function InviteScreen() {
     }
   };
 
+  // QR kod URL'si (Google Chart API kullanarak)
+  const getQRCodeUrl = (data: string) => {
+    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data)}`;
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -103,15 +108,14 @@ export default function InviteScreen() {
           <Text style={styles.inviteTitle}>{targetName}</Text>
           <Text style={styles.inviteSubtitle}>Arkadaşlarını davet et!</Text>
 
-          {/* QR Code */}
+          {/* QR Code using external API */}
           {showQR && inviteLink && (
             <View style={styles.qrContainer}>
               <View style={styles.qrWrapper}>
-                <QRCode
-                  value={inviteLink}
-                  size={180}
-                  color="#1f2937"
-                  backgroundColor="#fff"
+                <Image 
+                  source={{ uri: getQRCodeUrl(inviteLink) }}
+                  style={styles.qrImage}
+                  resizeMode="contain"
                 />
               </View>
               <Text style={styles.qrHint}>QR kodu taratarak katılın</Text>
@@ -201,6 +205,7 @@ const styles = StyleSheet.create({
   inviteSubtitle: { fontSize: 16, color: '#e0e7ff', marginBottom: 20 },
   qrContainer: { alignItems: 'center', marginTop: 8 },
   qrWrapper: { padding: 16, backgroundColor: '#fff', borderRadius: 16, marginBottom: 12 },
+  qrImage: { width: 180, height: 180 },
   qrHint: { color: '#e0e7ff', fontSize: 13, marginTop: 8 },
   toggleQR: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 16, paddingVertical: 8, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20 },
   toggleQRText: { color: '#e0e7ff', fontSize: 14 },
