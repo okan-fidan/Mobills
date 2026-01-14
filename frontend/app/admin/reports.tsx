@@ -60,7 +60,7 @@ export default function AdminReportsScreen() {
 
   const loadReports = useCallback(async () => {
     try {
-      const response = await api.get(`/api/security/reports?status=${filter}`);
+      const response = await api.get(`/security/reports?status=${filter}`);
       setReports(response.data || []);
     } catch (error) {
       console.error('Error loading reports:', error);
