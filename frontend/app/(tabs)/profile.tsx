@@ -74,7 +74,7 @@ export default function ProfileScreen() {
           name: 'profile.jpg',
         } as any);
         
-        await api.put('/user/profile-image', formData, {
+        await api.put('/api/user/profile-image', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
         });
         
