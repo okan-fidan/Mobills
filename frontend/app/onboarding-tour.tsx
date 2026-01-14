@@ -98,9 +98,9 @@ export default function OnboardingTourScreen() {
 
   const renderStep = ({ item, index }: { item: TourStep; index: number }) => (
     <View style={[styles.slide, { width }]}>
-      <LinearGradient colors={item.gradient} style={styles.iconContainer}>
+      <View style={[styles.iconContainer, { backgroundColor: item.color }]}>
         <Ionicons name={item.icon as any} size={80} color="#fff" />
-      </LinearGradient>
+      </View>
       <Text style={styles.title}>{item.title}</Text>
       <Text style={styles.description}>{item.description}</Text>
     </View>
