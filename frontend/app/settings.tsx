@@ -66,9 +66,6 @@ export default function SettingsScreen() {
 
   const loadSettings = async () => {
     try {
-      const savedTheme = await AsyncStorage.getItem('app_theme');
-      if (savedTheme) setTheme(savedTheme as any);
-
       const savedNotifications = await AsyncStorage.getItem('notification_settings');
       if (savedNotifications) setNotifications(JSON.parse(savedNotifications));
 
@@ -79,13 +76,8 @@ export default function SettingsScreen() {
     }
   };
 
-  const saveTheme = async (newTheme: 'light' | 'dark' | 'system') => {
-    try {
-      await AsyncStorage.setItem('app_theme', newTheme);
-      setTheme(newTheme);
-    } catch (error) {
-      console.error('Error saving theme:', error);
-    }
+  const handleThemeChange = (newTheme: 'light' | 'dark' | 'system') => {
+    setTheme(newTheme);
   };
 
   const saveNotificationSetting = async (key: keyof NotificationSettings, value: boolean) => {
