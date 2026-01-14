@@ -897,6 +897,19 @@ export default function GroupChatScreen() {
           <View style={styles.actionsModal}>
             <Text style={styles.actionsTitle}>Mesaj İşlemleri</Text>
             
+            {/* Hızlı Tepkiler */}
+            <View style={styles.quickReactionsRow}>
+              {REACTION_EMOJIS.map((emoji) => (
+                <TouchableOpacity
+                  key={emoji}
+                  style={styles.quickReactionButton}
+                  onPress={() => selectedMessage && handleReaction(selectedMessage, emoji)}
+                >
+                  <Text style={styles.quickReactionEmoji}>{emoji}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            
             {/* Yanıtla */}
             <TouchableOpacity 
               style={styles.actionItem}
