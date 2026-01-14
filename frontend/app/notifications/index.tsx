@@ -69,7 +69,7 @@ export default function NotificationsScreen() {
   const handlePress = async (notification: Notification) => {
     // Mark as read
     try {
-      await api.put(`/notifications/${notification.id}/read`);
+      await api.put(`/api/notifications/${notification.id}/read`);
       setNotifications(notifications.map(n => 
         n.id === notification.id ? { ...n, isRead: true } : n
       ));
@@ -88,7 +88,7 @@ export default function NotificationsScreen() {
 
   const markAllAsRead = async () => {
     try {
-      await api.put('/notifications/read-all');
+      await api.put('/api/notifications/read-all');
       setNotifications(notifications.map(n => ({ ...n, isRead: true })));
     } catch (e) {}
   };
