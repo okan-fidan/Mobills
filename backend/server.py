@@ -2463,6 +2463,176 @@ from routes.security import setup_security_routes
 security_api_router = setup_security_routes(db, get_current_user)
 api_router.include_router(security_api_router)
 
+# ==================== APPOINTMENTS API ====================
+@api_router.get("/appointments")
+async def get_appointments(current_user: dict = Depends(get_current_user)):
+    """Kullanıcının randevularını getir"""
+    appointments = await db.appointments.find({
+        "$or": [
+            {"userId": current_user["uid"]},
+            {"targetUserId": current_user["uid"]}
+        ]
+    }).sort("date", -1).to_list(100)
+    
+    for apt in appointments:
+        apt["id"] = apt.pop("_id", apt.get("id"))
+    return appointments
+
+@api_router.post("/appointments")
+async def create_appointment(data: dict, current_user: dict = Depends(get_current_user)):
+    """Yeni randevu oluştur"""
+    target_user = await db.users.find_one({"uid": data["targetUserId"]})
+    if not target_user:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    
+    appointment = {
+        "id": str(uuid.uuid4()),
+        "userId": current_user["uid"],
+        "userName": f"{current_user.get('firstName', '')} {current_user.get('lastName', '')}".strip(),
+        "targetUserId": data["targetUserId"],
+        "targetUserName": f"{target_user.get('firstName', '')} {target_user.get('lastName', '')}".strip(),
+        "date": data["date"],
+        "time": data["time"],
+        "status": "pending",
+        "note": data.get("note"),
+        "createdAt": datetime.utcnow().isoformat(),
+    }
+    
+    await db.appointments.insert_one(appointment)
+    appointment["id"] = appointment.pop("_id", appointment.get("id"))
+    return appointment
+
+@api_router.put("/appointments/{appointment_id}")
+async def update_appointment(appointment_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    """Randevu durumunu güncelle"""
+    appointment = await db.appointments.find_one({"id": appointment_id})
+    if not appointment:
+        raise HTTPException(status_code=404, detail="Randevu bulunamadı")
+    
+    if appointment["targetUserId"] != current_user["uid"] and appointment["userId"] != current_user["uid"]:
+        raise HTTPException(status_code=403, detail="Bu randevuyu güncelleme yetkiniz yok")
+    
+    await db.appointments.update_one(
+        {"id": appointment_id},
+        {"$set": {"status": data["status"]}}
+    )
+    return {"success": True}
+
+# ==================== PROJECTS API ====================
+@api_router.get("/projects")
+async def get_projects(current_user: dict = Depends(get_current_user)):
+    """Kullanıcının projelerini getir"""
+    projects = await db.projects.find({
+        "$or": [
+            {"ownerId": current_user["uid"]},
+            {"members.userId": current_user["uid"]}
+        ]
+    }).sort("createdAt", -1).to_list(100)
+    
+    for project in projects:
+        project["id"] = project.pop("_id", project.get("id"))
+        # Progress hesapla
+        tasks = project.get("tasks", [])
+        if tasks:
+            done_count = len([t for t in tasks if t.get("status") == "done"])
+            project["progress"] = int((done_count / len(tasks)) * 100)
+        else:
+            project["progress"] = 0
+    
+    return projects
+
+@api_router.post("/projects")
+async def create_project(data: dict, current_user: dict = Depends(get_current_user)):
+    """Yeni proje oluştur"""
+    project = {
+        "id": str(uuid.uuid4()),
+        "title": data["title"],
+        "description": data.get("description", ""),
+        "status": "planning",
+        "ownerId": current_user["uid"],
+        "ownerName": f"{current_user.get('firstName', '')} {current_user.get('lastName', '')}".strip(),
+        "members": [{
+            "userId": current_user["uid"],
+            "userName": f"{current_user.get('firstName', '')} {current_user.get('lastName', '')}".strip(),
+            "role": "owner"
+        }],
+        "tasks": [],
+        "createdAt": datetime.utcnow().isoformat(),
+    }
+    
+    await db.projects.insert_one(project)
+    project["id"] = project.pop("_id", project.get("id"))
+    project["progress"] = 0
+    return project
+
+@api_router.post("/projects/{project_id}/tasks")
+async def add_project_task(project_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    """Projeye görev ekle"""
+    project = await db.projects.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Proje bulunamadı")
+    
+    task = {
+        "id": str(uuid.uuid4()),
+        "title": data["title"],
+        "status": "todo",
+        "assigneeId": data.get("assigneeId"),
+        "assigneeName": data.get("assigneeName"),
+        "dueDate": data.get("dueDate"),
+        "createdAt": datetime.utcnow().isoformat(),
+    }
+    
+    await db.projects.update_one(
+        {"id": project_id},
+        {"$push": {"tasks": task}}
+    )
+    return task
+
+@api_router.put("/projects/{project_id}/tasks/{task_id}")
+async def update_project_task(project_id: str, task_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    """Proje görevini güncelle"""
+    result = await db.projects.update_one(
+        {"id": project_id, "tasks.id": task_id},
+        {"$set": {"tasks.$.status": data["status"]}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Görev bulunamadı")
+    
+    return {"success": True}
+
+@api_router.post("/projects/{project_id}/invite")
+async def invite_project_member(project_id: str, data: dict, current_user: dict = Depends(get_current_user)):
+    """Projeye üye davet et"""
+    project = await db.projects.find_one({"id": project_id})
+    if not project:
+        raise HTTPException(status_code=404, detail="Proje bulunamadı")
+    
+    if project["ownerId"] != current_user["uid"]:
+        raise HTTPException(status_code=403, detail="Sadece proje sahibi üye davet edebilir")
+    
+    # Email ile kullanıcı bul
+    user = await db.users.find_one({"email": data["email"]})
+    if not user:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı")
+    
+    # Zaten üye mi kontrol et
+    if any(m["userId"] == user["uid"] for m in project.get("members", [])):
+        raise HTTPException(status_code=400, detail="Kullanıcı zaten üye")
+    
+    member = {
+        "userId": user["uid"],
+        "userName": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip(),
+        "role": "member"
+    }
+    
+    await db.projects.update_one(
+        {"id": project_id},
+        {"$push": {"members": member}}
+    )
+    
+    return {"success": True}
+
 # Include the router in the main app
 app.include_router(api_router)
 
