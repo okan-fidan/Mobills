@@ -21,6 +21,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { postApi, userListApi } from '../../src/services/api';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { incrementPostCount, shouldShowRatingPrompt, requestReview } from '../../src/utils/appRating';
 
 interface User {
   uid: string;
