@@ -141,12 +141,12 @@ export default function SettingsScreen() {
     try {
       if (!twoFactorEnabled) {
         // Enable 2FA
-        await api.post('/api/security/2fa/verify', { code: verificationCode });
+        await api.post('/security/2fa/verify', { code: verificationCode });
         setTwoFactorEnabled(true);
         Alert.alert('Başarılı', 'İki faktörlü doğrulama etkinleştirildi!');
       } else {
         // Disable 2FA
-        await api.post('/api/security/2fa/disable', { code: verificationCode });
+        await api.post('/security/2fa/disable', { code: verificationCode });
         setTwoFactorEnabled(false);
         Alert.alert('Başarılı', '2FA devre dışı bırakıldı');
       }
