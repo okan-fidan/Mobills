@@ -44,7 +44,7 @@ interface Message {
   senderProfileImage?: string;
   content: string;
   timestamp: string;
-  type?: 'text' | 'image' | 'video' | 'file';
+  type?: 'text' | 'image' | 'video' | 'file' | 'location' | 'poll';
   mediaUrl?: string;
   fileName?: string;
   edited?: boolean;
@@ -57,6 +57,14 @@ interface Message {
   status?: 'sent' | 'delivered' | 'read';
   readBy?: string[];
   deliveredTo?: string[];
+  reactions?: { emoji: string; userId: string; userName: string }[];
+  location?: {
+    latitude: number;
+    longitude: number;
+    address?: string;
+    isLive?: boolean;
+  };
+  poll?: Poll;
 }
 
 interface Poll {
