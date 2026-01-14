@@ -31,8 +31,8 @@ export default function ProfileScreen() {
   const loadStats = async () => {
     try {
       const [postsRes, communitiesRes] = await Promise.all([
-        api.get('/my-posts'),
-        api.get('/communities'),
+        api.get('/api/my-posts'),
+        api.get('/api/communities'),
       ]);
       
       const myCommunities = communitiesRes.data.filter((c: any) => c.isMember);
