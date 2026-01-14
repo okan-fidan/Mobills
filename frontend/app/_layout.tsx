@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Stack } from 'expo-router';
 import { AuthProvider } from '../src/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
+import { ChatSettingsProvider } from '../src/contexts/ChatSettingsContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -51,9 +52,11 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <AuthProvider>
-            <AppContent />
-          </AuthProvider>
+          <ChatSettingsProvider>
+            <AuthProvider>
+              <AppContent />
+            </AuthProvider>
+          </ChatSettingsProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
