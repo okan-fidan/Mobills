@@ -48,7 +48,7 @@ export default function AdminSecurityScreen() {
 
   const loadData = useCallback(async () => {
     try {
-      const response = await api.get('/security/logs/suspicious');
+      const response = await api.get('/api/security/logs/suspicious');
       setData(response.data);
     } catch (error) {
       console.error('Error loading security data:', error);
