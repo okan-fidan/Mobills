@@ -553,6 +553,116 @@ export default function GroupChatScreen() {
     setShowAttachMenu(false);
   };
 
+  // Tepki ekle/kaldır
+  const handleReaction = async (message: Message, emoji: string) => {
+    if (!groupId || !user?.uid) return;
+    
+    try {
+      await api.post(`/api/subgroups/${groupId}/messages/${message.id}/reaction`, {
+        emoji,
+        userId: user.uid,
+        userName: userProfile?.firstName || 'Kullanıcı',
+      });
+      
+      // Tepkileri güncelle
+      const existingReaction = message.reactions?.find(
+        r => r.userId === user.uid && r.emoji === emoji
+      );
+      
+      setMessages(messages.map(m => {
+        if (m.id !== message.id) return m;
+        
+        let newReactions = [...(m.reactions || [])];
+        
+        if (existingReaction) {
+          // Tepkiyi kaldır
+          newReactions = newReactions.filter(
+            r => !(r.userId === user.uid && r.emoji === emoji)
+          );
+        } else {
+          // Tepki ekle
+          newReactions.push({
+            emoji,
+            userId: user.uid,
+            userName: userProfile?.firstName || 'Kullanıcı',
+          });
+        }
+        
+        return { ...m, reactions: newReactions };
+      }));
+    } catch (error) {
+      console.error('Error adding reaction:', error);
+    }
+    
+    setShowReactionPicker(false);
+    setReactionTargetMessage(null);
+  };
+
+  // Konum paylaş
+  const shareLocation = async (isLive: boolean = false, duration?: number) => {
+    setLoadingLocation(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('İzin Gerekli', 'Konum paylaşmak için konum izni gerekiyor.');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+
+      // Adres al
+      let address = '';
+      try {
+        const [addressResult] = await Location.reverseGeocodeAsync({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+        if (addressResult) {
+          address = [addressResult.street, addressResult.district, addressResult.city]
+            .filter(Boolean)
+            .join(', ');
+        }
+      } catch (e) {}
+
+      // Konum mesajı gönder
+      await subgroupApi.sendMessage(groupId!, {
+        content: `📍 ${address || 'Konum'}`,
+        type: 'location',
+        location: {
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+          address,
+          isLive,
+          duration,
+        },
+      });
+
+      loadData();
+      Alert.alert('Başarılı', 'Konum paylaşıldı');
+    } catch (error) {
+      console.error('Error sharing location:', error);
+      Alert.alert('Hata', 'Konum paylaşılamadı');
+    } finally {
+      setLoadingLocation(false);
+      setShowLocationPicker(false);
+      setShowAttachMenu(false);
+    }
+  };
+
+  // Konum mesajını haritada aç
+  const openLocationInMaps = (lat: number, lng: number) => {
+    const url = Platform.select({
+      ios: `maps:${lat},${lng}?q=Konum`,
+      android: `geo:${lat},${lng}?q=${lat},${lng}(Konum)`,
+      default: `https://maps.google.com/?q=${lat},${lng}`,
+    });
+    Linking.openURL(url as string).catch(() => {
+      Linking.openURL(`https://maps.google.com/?q=${lat},${lng}`);
+    });
+  };
+
   const formatTime = (timestamp: string) => {
     try {
       return formatDistanceToNow(new Date(timestamp), { addSuffix: true, locale: tr });
