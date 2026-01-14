@@ -218,7 +218,7 @@ export default function SettingsScreen() {
           <View style={styles.themeSelector}>
             <TouchableOpacity 
               style={[styles.themeOption, theme === 'light' && styles.themeOptionActive]}
-              onPress={() => saveTheme('light')}
+              onPress={() => handleThemeChange('light')}
             >
               <Ionicons name="sunny" size={24} color={theme === 'light' ? '#6366f1' : '#6b7280'} />
               <Text style={[styles.themeText, theme === 'light' && styles.themeTextActive]}>Açık</Text>
@@ -226,7 +226,7 @@ export default function SettingsScreen() {
             
             <TouchableOpacity 
               style={[styles.themeOption, theme === 'dark' && styles.themeOptionActive]}
-              onPress={() => saveTheme('dark')}
+              onPress={() => handleThemeChange('dark')}
             >
               <Ionicons name="moon" size={24} color={theme === 'dark' ? '#6366f1' : '#6b7280'} />
               <Text style={[styles.themeText, theme === 'dark' && styles.themeTextActive]}>Koyu</Text>
@@ -234,7 +234,7 @@ export default function SettingsScreen() {
             
             <TouchableOpacity 
               style={[styles.themeOption, theme === 'system' && styles.themeOptionActive]}
-              onPress={() => saveTheme('system')}
+              onPress={() => handleThemeChange('system')}
             >
               <Ionicons name="phone-portrait" size={24} color={theme === 'system' ? '#6366f1' : '#6b7280'} />
               <Text style={[styles.themeText, theme === 'system' && styles.themeTextActive]}>Sistem</Text>
