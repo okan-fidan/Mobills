@@ -33,7 +33,7 @@ export default function NotificationsScreen() {
 
   const loadNotifications = useCallback(async () => {
     try {
-      const response = await api.get('/notifications');
+      const response = await api.get('/api/notifications');
       setNotifications(response.data);
     } catch (error) {
       console.error('Error loading notifications:', error);
