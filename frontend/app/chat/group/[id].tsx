@@ -122,6 +122,12 @@ export default function GroupChatScreen() {
   // Akıllı yanıtlar
   const [smartReplies, setSmartReplies] = useState<string[]>([]);
   const [loadingSmartReplies, setLoadingSmartReplies] = useState(false);
+  // Tepki (Reaction) için state'ler
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [reactionTargetMessage, setReactionTargetMessage] = useState<Message | null>(null);
+  // Konum paylaşma için state'ler
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [loadingLocation, setLoadingLocation] = useState(false);
   
   const flatListRef = useRef<FlatList>(null);
   const { user, userProfile } = useAuth();
