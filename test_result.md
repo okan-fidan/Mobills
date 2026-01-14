@@ -151,7 +151,7 @@ backend:
     status_history:
       - working: true
         agent: "testing"
-        comment: "Backend server responding correctly at https://entrepreneurnet.preview.emergentagent.com"
+        comment: "Backend server responding correctly at https://social-launch-3.preview.emergentagent.com"
 
   - task: "Admin Dashboard API Protection"
     implemented: true
@@ -248,8 +248,8 @@ agent_communication:
   - agent: "testing"
     message: "Backend API testing completed successfully. All basic endpoints (health check, cities, auth verification) are working correctly. Server is responsive and returning expected data. Created comprehensive backend_test.py for future testing."
   - agent: "testing"
-    message: "Comprehensive re-testing completed as requested. All endpoints verified: 1) GET /api/ returns correct message 2) GET /api/cities returns all 81 Turkish cities 3) Admin endpoints (/admin/dashboard, /admin/users, /admin/communities) properly protected with 403 status. Backend server fully operational at https://entrepreneurnet.preview.emergentagent.com"
+    message: "Comprehensive re-testing completed as requested. All endpoints verified: 1) GET /api/ returns correct message 2) GET /api/cities returns all 81 Turkish cities 3) Admin endpoints (/admin/dashboard, /admin/users, /admin/communities) properly protected with 403 status. Backend server fully operational at https://social-launch-3.preview.emergentagent.com"
   - agent: "testing"
-    message: "Re-tested backend API as per user request. All specified endpoints working correctly: 1) Health check via GET /api/ (no /api/health endpoint exists) returns 'Network Solution API' 2) GET /api/communities correctly requires Firebase auth (403) 3) GET /api/services correctly requires Firebase auth (403) 4) Server connectivity confirmed at https://entrepreneurnet.preview.emergentagent.com. All 7 tests passed successfully."
+    message: "Re-tested backend API as per user request. All specified endpoints working correctly: 1) Health check via GET /api/ (no /api/health endpoint exists) returns 'Network Solution API' 2) GET /api/communities correctly requires Firebase auth (403) 3) GET /api/services correctly requires Firebase auth (403) 4) Server connectivity confirmed at https://social-launch-3.preview.emergentagent.com. All 7 tests passed successfully."
   - agent: "main"
     message: "Authentication flow fixed! Issues found: 1) Web button (TouchableOpacity) not working on web platform - fixed with Platform.OS check using native HTML button for web 2) Firebase token not being sent initially - was a timing issue, now working. Signup -> Profile Registration -> Login all verified working."
