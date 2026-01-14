@@ -191,6 +191,14 @@ export default function ProfileScreen() {
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
         >
+          {/* Settings Button */}
+          <TouchableOpacity 
+            style={styles.settingsButton}
+            onPress={() => router.push('/settings')}
+          >
+            <Ionicons name="settings-outline" size={24} color="#fff" />
+          </TouchableOpacity>
+          
           <View style={styles.headerContent}>
             {/* Avatar */}
             <View style={styles.avatarContainer}>
