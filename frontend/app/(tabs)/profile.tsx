@@ -576,6 +576,39 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 2,
   },
+  featureButtons: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    gap: 12,
+  },
+  featureButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    borderRadius: 16,
+    padding: 16,
+  },
+  featureButtonIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  featureButtonInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  featureButtonTitle: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  featureButtonSubtitle: {
+    color: '#6b7280',
+    fontSize: 13,
+    marginTop: 2,
+  },
   quickActionsContainer: {
     marginTop: 24,
     paddingHorizontal: 16,
