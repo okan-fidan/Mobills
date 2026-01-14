@@ -58,7 +58,7 @@ export default function SettingsScreen() {
 
   const load2FAStatus = async () => {
     try {
-      const response = await api.get('/api/security/2fa/status');
+      const response = await api.get('/security/2fa/status');
       setTwoFactorEnabled(response.data.enabled || false);
     } catch (error) {
       console.error('Error loading 2FA status:', error);
