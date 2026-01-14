@@ -340,6 +340,46 @@ async def update_privacy_settings(settings: dict, current_user: dict = Depends(g
         )
     return {"message": "Gizlilik ayarları güncellendi"}
 
+@api_router.put("/user/notification-settings")
+async def update_notification_settings(settings: dict, current_user: dict = Depends(get_current_user)):
+    """Kullanıcının bildirim ayarlarını güncelle"""
+    await db.users.update_one(
+        {"uid": current_user['uid']},
+        {"$set": {"notificationSettings": settings}}
+    )
+    return {"message": "Bildirim ayarları güncellendi"}
+
+@api_router.post("/feedback")
+async def submit_feedback(data: dict, current_user: dict = Depends(get_current_user)):
+    """Kullanıcı geri bildirimi kaydet"""
+    feedback = {
+        "id": str(uuid.uuid4()),
+        "userId": current_user['uid'],
+        "userEmail": data.get('userEmail'),
+        "userName": data.get('userName'),
+        "type": data.get('type'),
+        "subject": data.get('subject'),
+        "message": data.get('message'),
+        "rating": data.get('rating'),
+        "status": "pending",
+        "createdAt": datetime.utcnow()
+    }
+    await db.feedback.insert_one(feedback)
+    return {"message": "Geri bildirim kaydedildi", "id": feedback['id']}
+
+@api_router.get("/feedback")
+async def get_feedback(current_user: dict = Depends(get_current_user)):
+    """Geri bildirimleri listele (admin)"""
+    user = await db.users.find_one({"uid": current_user['uid']})
+    if not user.get('isAdmin'):
+        raise HTTPException(status_code=403, detail="Admin yetkisi gerekli")
+    
+    feedbacks = await db.feedback.find({}).sort("createdAt", -1).limit(100).to_list(100)
+    for f in feedbacks:
+        if '_id' in f:
+            del f['_id']
+    return feedbacks
+
 @api_router.post("/user/push-token")
 async def save_push_token(data: dict, current_user: dict = Depends(get_current_user)):
     """Push notification token'ını kaydet"""
