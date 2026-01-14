@@ -52,11 +52,11 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.container}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
-          <ChatSettingsProvider>
-            <AuthProvider>
+          <AuthProvider>
+            <ChatSettingsProvider>
               <AppContent />
-            </AuthProvider>
-          </ChatSettingsProvider>
+            </ChatSettingsProvider>
+          </AuthProvider>
         </ThemeProvider>
       </QueryClientProvider>
     </GestureHandlerRootView>
