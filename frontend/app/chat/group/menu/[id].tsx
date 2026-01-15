@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,9 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Animated,
+  Switch,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -23,6 +26,8 @@ import { subgroupApi } from '../../../../src/services/api';
 import { useAuth } from '../../../../src/contexts/AuthContext';
 import api from '../../../../src/services/api';
 import { showToast } from '../../../../src/components/ui';
+
+const { width } = Dimensions.get('window');
 
 interface SubGroup {
   id: string;
@@ -36,6 +41,7 @@ interface SubGroup {
   imageUrl?: string;
   isGroupAdmin?: boolean;
   isSuperAdmin?: boolean;
+  createdAt?: string;
 }
 
 interface Member {
@@ -44,6 +50,12 @@ interface Member {
   lastName: string;
   profileImageUrl?: string;
   isAdmin?: boolean;
+}
+
+interface MediaItem {
+  id: string;
+  type: 'image' | 'video';
+  url: string;
 }
 
 interface Poll {
@@ -67,14 +79,29 @@ export default function GroupMenuScreen() {
   const [members, setMembers] = useState<Member[]>([]);
   const [polls, setPolls] = useState<Poll[]>([]);
   const [pinnedMessages, setPinnedMessages] = useState<PinnedMessage[]>([]);
+  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  
+  // Modal states
   const [showPollModal, setShowPollModal] = useState(false);
+  const [showEditDescModal, setShowEditDescModal] = useState(false);
+  const [showMuteModal, setShowMuteModal] = useState(false);
+  
+  // Form states
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
   const [creatingPoll, setCreatingPoll] = useState(false);
+  const [newDescription, setNewDescription] = useState('');
+  const [savingDescription, setSavingDescription] = useState(false);
+  
+  // Settings states
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [muteUntil, setMuteUntil] = useState<string | null>(null);
+  
+  const scrollY = useRef(new Animated.Value(0)).current;
   const { user, userProfile } = useAuth();
   const router = useRouter();
 
@@ -83,17 +110,20 @@ export default function GroupMenuScreen() {
   const loadData = useCallback(async () => {
     if (!groupId) return;
     try {
-      const [groupRes, membersRes, pollsRes, pinnedRes] = await Promise.all([
+      const [groupRes, membersRes, pollsRes, pinnedRes, mediaRes] = await Promise.all([
         subgroupApi.getOne(groupId),
         subgroupApi.getMembers(groupId).catch(() => ({ data: [] })),
         subgroupApi.getPolls(groupId).catch(() => ({ data: [] })),
         subgroupApi.getPinnedMessages(groupId).catch(() => ({ data: [] })),
+        subgroupApi.getMedia(groupId).catch(() => ({ data: [] })),
       ]);
       
       setSubgroup(groupRes.data);
       setMembers(membersRes.data || []);
       setPolls(pollsRes.data || []);
       setPinnedMessages(pinnedRes.data || []);
+      setMediaItems((mediaRes.data || []).slice(0, 6));
+      setNewDescription(groupRes.data?.description || '');
     } catch (error) {
       console.error('Error loading group menu:', error);
       showToast.error('Hata', 'Grup bilgileri yüklenemedi');
@@ -142,6 +172,22 @@ export default function GroupMenuScreen() {
       } finally {
         setUploadingImage(false);
       }
+    }
+  };
+
+  const handleSaveDescription = async () => {
+    setSavingDescription(true);
+    try {
+      await api.put(`/api/subgroups/${groupId}/description`, {
+        description: newDescription.trim(),
+      });
+      showToast.success('Başarılı', 'Açıklama güncellendi');
+      setShowEditDescModal(false);
+      loadData();
+    } catch (error) {
+      Alert.alert('Hata', 'Açıklama güncellenemedi');
+    } finally {
+      setSavingDescription(false);
     }
   };
 
@@ -194,14 +240,32 @@ export default function GroupMenuScreen() {
     }
   };
 
+  const handleMute = (duration: string) => {
+    setMuteUntil(duration);
+    setShowMuteModal(false);
+    showToast.success('Bildirimler', `Bildirimler ${duration} susturuldu`);
+  };
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('tr-TR', {
       day: 'numeric',
       month: 'long',
-      hour: '2-digit',
-      minute: '2-digit',
+      year: 'numeric',
     });
+  };
+
+  const handleReportGroup = () => {
+    Alert.alert(
+      'Grubu Bildir',
+      'Bu grubu neden bildirmek istiyorsunuz?',
+      [
+        { text: 'Spam', onPress: () => showToast.info('Bildirildi', 'Şikayetiniz alındı') },
+        { text: 'Uygunsuz İçerik', onPress: () => showToast.info('Bildirildi', 'Şikayetiniz alındı') },
+        { text: 'Sahte Hesap', onPress: () => showToast.info('Bildirildi', 'Şikayetiniz alındı') },
+        { text: 'İptal', style: 'cancel' },
+      ]
+    );
   };
 
   if (loading) {
@@ -221,8 +285,9 @@ export default function GroupMenuScreen() {
     );
   }
 
-  const description = subgroup.description || 'Bu grup için açıklama eklenmemiş.';
+  const description = subgroup.description || 'Grup açıklaması eklemek için dokunun';
   const shouldTruncate = description.length > 100;
+  const adminMembers = members.filter(m => subgroup.groupAdmins?.includes(m.uid));
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -232,13 +297,20 @@ export default function GroupMenuScreen() {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Grup Bilgisi</Text>
-        <View style={{ width: 44 }} />
+        <TouchableOpacity style={styles.headerButton}>
+          <Ionicons name="search" size={22} color="#fff" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
+      <Animated.ScrollView
         style={styles.scrollView}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6366f1" />}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
       >
         {/* Profile Section */}
         <View style={styles.profileSection}>
@@ -246,6 +318,7 @@ export default function GroupMenuScreen() {
             style={styles.avatarWrapper}
             onPress={isAdmin ? handleChangeGroupImage : undefined}
             disabled={!isAdmin || uploadingImage}
+            activeOpacity={0.8}
           >
             {subgroup.imageUrl ? (
               <Image source={{ uri: subgroup.imageUrl }} style={styles.avatar} />
@@ -278,25 +351,117 @@ export default function GroupMenuScreen() {
             >
               <Ionicons name="people" size={16} color="#6366f1" />
               <Text style={styles.communityLinkText}>{subgroup.communityName}</Text>
+              <Ionicons name="chevron-forward" size={14} color="#6366f1" />
             </TouchableOpacity>
           )}
-
-          {/* Açıklama */}
-          <View style={styles.descriptionContainer}>
-            <Text style={styles.descriptionText} numberOfLines={showFullDescription ? undefined : 3}>
-              {description}
-            </Text>
-            {shouldTruncate && (
-              <TouchableOpacity onPress={() => setShowFullDescription(!showFullDescription)}>
-                <Text style={styles.readMoreText}>
-                  {showFullDescription ? 'Daha az göster' : 'Devamını oku'}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
         </View>
 
-        {/* Anketler Section */}
+        {/* Description Section */}
+        <TouchableOpacity 
+          style={styles.descriptionSection}
+          onPress={isAdmin ? () => setShowEditDescModal(true) : undefined}
+          disabled={!isAdmin}
+          activeOpacity={isAdmin ? 0.7 : 1}
+        >
+          <View style={styles.descriptionHeader}>
+            <Ionicons name="information-circle" size={20} color="#6b7280" />
+            <Text style={styles.descriptionLabel}>Açıklama</Text>
+            {isAdmin && <Ionicons name="pencil" size={16} color="#6366f1" />}
+          </View>
+          <Text 
+            style={[styles.descriptionText, !subgroup.description && styles.placeholderText]} 
+            numberOfLines={showFullDescription ? undefined : 3}
+          >
+            {description}
+          </Text>
+          {shouldTruncate && (
+            <TouchableOpacity onPress={() => setShowFullDescription(!showFullDescription)}>
+              <Text style={styles.readMoreText}>
+                {showFullDescription ? 'Daha az göster' : 'Devamını oku'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {subgroup.createdAt && (
+            <Text style={styles.createdAt}>
+              Oluşturulma: {formatDate(subgroup.createdAt)}
+            </Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Media Preview Section */}
+        <View style={styles.section}>
+          <TouchableOpacity 
+            style={styles.sectionHeader}
+            onPress={() => router.push(`/chat/group/media/${groupId}`)}
+          >
+            <View style={styles.sectionTitleRow}>
+              <View style={[styles.sectionIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
+                <Ionicons name="images" size={20} color="#3b82f6" />
+              </View>
+              <Text style={styles.sectionTitle}>Medya, Linkler ve Belgeler</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+          </TouchableOpacity>
+
+          {mediaItems.length > 0 ? (
+            <View style={styles.mediaPreviewGrid}>
+              {mediaItems.slice(0, 6).map((item, index) => (
+                <TouchableOpacity 
+                  key={item.id} 
+                  style={styles.mediaPreviewItem}
+                  onPress={() => router.push(`/chat/group/media/${groupId}`)}
+                >
+                  <Image source={{ uri: item.url }} style={styles.mediaPreviewImage} />
+                  {index === 5 && mediaItems.length > 6 && (
+                    <View style={styles.moreOverlay}>
+                      <Text style={styles.moreText}>+{mediaItems.length - 6}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.noMediaText}>Henüz medya paylaşılmadı</Text>
+          )}
+        </View>
+
+        {/* Notifications Section */}
+        <View style={styles.section}>
+          <View style={styles.settingItem}>
+            <View style={styles.settingLeft}>
+              <View style={[styles.sectionIcon, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+                <Ionicons name="notifications" size={20} color="#10b981" />
+              </View>
+              <Text style={styles.settingText}>Bildirimler</Text>
+            </View>
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={setNotificationsEnabled}
+              trackColor={{ false: '#374151', true: '#6366f1' }}
+              thumbColor="#fff"
+            />
+          </View>
+
+          {notificationsEnabled && (
+            <TouchableOpacity 
+              style={styles.settingItem}
+              onPress={() => setShowMuteModal(true)}
+            >
+              <View style={styles.settingLeft}>
+                <View style={[styles.sectionIcon, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+                  <Ionicons name="volume-mute" size={20} color="#f59e0b" />
+                </View>
+                <View>
+                  <Text style={styles.settingText}>Sustur</Text>
+                  {muteUntil && <Text style={styles.settingSubtext}>{muteUntil}</Text>}
+                </View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* Polls Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
@@ -304,34 +469,48 @@ export default function GroupMenuScreen() {
                 <Ionicons name="stats-chart" size={20} color="#8b5cf6" />
               </View>
               <Text style={styles.sectionTitle}>Anketler</Text>
+              {polls.length > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{polls.length}</Text>
+                </View>
+              )}
             </View>
             <TouchableOpacity style={styles.addButton} onPress={() => setShowPollModal(true)}>
-              <Ionicons name="add" size={24} color="#8b5cf6" />
+              <Ionicons name="add-circle" size={28} color="#8b5cf6" />
             </TouchableOpacity>
           </View>
 
           {polls.length > 0 ? (
             <View style={styles.itemList}>
-              {polls.slice(0, 3).map((poll) => (
+              {polls.slice(0, 2).map((poll) => (
                 <View key={poll.id} style={styles.pollCard}>
                   <Text style={styles.pollQuestion}>{poll.question}</Text>
-                  <Text style={styles.pollMeta}>
-                    {poll.creatorName} • {poll.options.length} seçenek
-                  </Text>
+                  <View style={styles.pollMeta}>
+                    <Ionicons name="person-outline" size={12} color="#6b7280" />
+                    <Text style={styles.pollMetaText}>{poll.creatorName}</Text>
+                    <Text style={styles.pollMetaText}>•</Text>
+                    <Text style={styles.pollMetaText}>{poll.options.length} seçenek</Text>
+                  </View>
                 </View>
               ))}
+              {polls.length > 2 && (
+                <TouchableOpacity style={styles.showAllLink}>
+                  <Text style={styles.showAllText}>Tüm anketleri gör ({polls.length})</Text>
+                </TouchableOpacity>
+              )}
             </View>
           ) : (
             <View style={styles.emptyState}>
               <View style={styles.emptyIconWrapper}>
-                <Ionicons name="stats-chart-outline" size={40} color="#374151" />
+                <Ionicons name="stats-chart-outline" size={32} color="#374151" />
               </View>
               <Text style={styles.emptyText}>Henüz anket yok</Text>
+              <Text style={styles.emptySubtext}>Yeni anket oluşturmak için + butonuna dokunun</Text>
             </View>
           )}
         </View>
 
-        {/* Sabitlenen Mesajlar Section */}
+        {/* Pinned Messages Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleRow}>
@@ -339,12 +518,17 @@ export default function GroupMenuScreen() {
                 <Ionicons name="pin" size={20} color="#f59e0b" />
               </View>
               <Text style={styles.sectionTitle}>Sabitlenen Mesajlar</Text>
+              {pinnedMessages.length > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{pinnedMessages.length}</Text>
+                </View>
+              )}
             </View>
           </View>
 
           {pinnedMessages.length > 0 ? (
             <View style={styles.itemList}>
-              {pinnedMessages.slice(0, 3).map((msg) => (
+              {pinnedMessages.slice(0, 2).map((msg) => (
                 <View key={msg.id} style={styles.pinnedCard}>
                   <Text style={styles.pinnedContent} numberOfLines={2}>{msg.content}</Text>
                   <Text style={styles.pinnedMeta}>{msg.senderName}</Text>
@@ -352,115 +536,128 @@ export default function GroupMenuScreen() {
               ))}
             </View>
           ) : (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIconWrapper}>
-                <Ionicons name="pin-outline" size={40} color="#374151" />
-              </View>
-              <Text style={styles.emptyText}>Sabitlenen mesaj yok</Text>
+            <View style={styles.emptyStateSmall}>
+              <Ionicons name="pin-outline" size={24} color="#374151" />
+              <Text style={styles.emptyTextSmall}>Sabitlenen mesaj yok</Text>
             </View>
           )}
         </View>
 
-        {/* Üyeler Section */}
+        {/* Members Section */}
         <View style={styles.section}>
-          <View style={styles.sectionHeader}>
+          <TouchableOpacity 
+            style={styles.sectionHeader}
+            onPress={() => router.push(`/chat/group/members/${groupId}`)}
+          >
             <View style={styles.sectionTitleRow}>
               <View style={[styles.sectionIcon, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
                 <Ionicons name="people" size={20} color="#10b981" />
               </View>
-              <Text style={styles.sectionTitle}>Üyeler</Text>
-              <Text style={styles.memberCount}>{subgroup.memberCount}</Text>
+              <Text style={styles.sectionTitle}>{subgroup.memberCount} Üye</Text>
             </View>
-          </View>
+            <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+          </TouchableOpacity>
 
-          <View style={styles.memberList}>
-            {members.slice(0, 5).map((member) => {
-              const isMemberAdmin = subgroup.groupAdmins?.includes(member.uid);
-              return (
+          {/* Admin Preview */}
+          {adminMembers.length > 0 && (
+            <View style={styles.adminPreview}>
+              {adminMembers.slice(0, 3).map((admin) => (
                 <TouchableOpacity
-                  key={member.uid}
-                  style={styles.memberCard}
-                  onPress={() => router.push(`/user/${member.uid}`)}
+                  key={admin.uid}
+                  style={styles.memberPreviewItem}
+                  onPress={() => router.push(`/user/${admin.uid}`)}
                 >
-                  <View style={styles.memberAvatar}>
-                    {member.profileImageUrl ? (
-                      <Image source={{ uri: member.profileImageUrl }} style={styles.memberAvatarImage} />
-                    ) : (
-                      <Ionicons name="person" size={20} color="#9ca3af" />
-                    )}
+                  {admin.profileImageUrl ? (
+                    <Image source={{ uri: admin.profileImageUrl }} style={styles.memberPreviewAvatar} />
+                  ) : (
+                    <LinearGradient colors={['#6366f1', '#4f46e5']} style={styles.memberPreviewAvatarPlaceholder}>
+                      <Text style={styles.avatarInitial}>{admin.firstName.charAt(0)}</Text>
+                    </LinearGradient>
+                  )}
+                  <Text style={styles.memberPreviewName} numberOfLines={1}>
+                    {admin.firstName}
+                  </Text>
+                  <View style={styles.adminLabel}>
+                    <Ionicons name="shield-checkmark" size={10} color="#10b981" />
                   </View>
-                  <View style={styles.memberInfo}>
-                    <Text style={styles.memberName}>{member.firstName} {member.lastName}</Text>
-                    {isMemberAdmin && (
-                      <Text style={styles.adminBadge}>Grup Yöneticisi</Text>
-                    )}
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color="#6b7280" />
                 </TouchableOpacity>
-              );
-            })}
-            
-            {members.length > 5 && (
-              <TouchableOpacity style={styles.showAllButton}>
-                <Text style={styles.showAllText}>Tüm üyeleri gör ({subgroup.memberCount})</Text>
-                <Ionicons name="chevron-forward" size={18} color="#6366f1" />
+              ))}
+              <TouchableOpacity
+                style={styles.memberPreviewItem}
+                onPress={() => router.push(`/chat/group/members/${groupId}`)}
+              >
+                <View style={styles.showAllMembersButton}>
+                  <Ionicons name="people" size={20} color="#6366f1" />
+                </View>
+                <Text style={styles.memberPreviewName}>Tümü</Text>
               </TouchableOpacity>
-            )}
-          </View>
+            </View>
+          )}
+
+          {isAdmin && (
+            <TouchableOpacity style={styles.addMemberButton}>
+              <Ionicons name="person-add" size={20} color="#6366f1" />
+              <Text style={styles.addMemberText}>Üye Ekle</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Yönetici Araçları */}
-        {isAdmin && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <View style={styles.sectionTitleRow}>
-                <View style={[styles.sectionIcon, { backgroundColor: 'rgba(99, 102, 241, 0.1)' }]}>
-                  <Ionicons name="shield-checkmark" size={20} color="#6366f1" />
-                </View>
-                <Text style={styles.sectionTitle}>Yönetici Araçları</Text>
-              </View>
-            </View>
+        {/* Actions Section */}
+        <View style={styles.actionsSection}>
+          <TouchableOpacity style={styles.actionItem} onPress={handleReportGroup}>
+            <Ionicons name="flag-outline" size={22} color="#f59e0b" />
+            <Text style={[styles.actionText, { color: '#f59e0b' }]}>Grubu Bildir</Text>
+          </TouchableOpacity>
 
-            <View style={styles.adminToolsList}>
-              <TouchableOpacity style={styles.adminToolItem} onPress={handleChangeGroupImage}>
-                <View style={[styles.adminToolIcon, { backgroundColor: 'rgba(99, 102, 241, 0.1)' }]}>
-                  <Ionicons name="camera" size={20} color="#6366f1" />
-                </View>
-                <Text style={styles.adminToolText}>Profil Fotoğrafı</Text>
-                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.adminToolItem}>
-                <View style={[styles.adminToolIcon, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
-                  <Ionicons name="person-add" size={20} color="#10b981" />
-                </View>
-                <Text style={styles.adminToolText}>Üye Ekle</Text>
-                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.adminToolItem}>
-                <View style={[styles.adminToolIcon, { backgroundColor: 'rgba(59, 130, 246, 0.1)' }]}>
-                  <Ionicons name="settings" size={20} color="#3b82f6" />
-                </View>
-                <Text style={styles.adminToolText}>Grup Ayarları</Text>
-                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Gruptan Ayrıl */}
-        <View style={styles.section}>
-          <TouchableOpacity style={styles.leaveButton} onPress={handleLeaveGroup}>
+          <TouchableOpacity style={styles.actionItem} onPress={handleLeaveGroup}>
             <Ionicons name="exit-outline" size={22} color="#ef4444" />
-            <Text style={styles.leaveButtonText}>Gruptan Ayrıl</Text>
+            <Text style={[styles.actionText, { color: '#ef4444' }]}>Gruptan Ayrıl</Text>
           </TouchableOpacity>
         </View>
 
         <View style={{ height: 40 }} />
-      </ScrollView>
+      </Animated.ScrollView>
 
-      {/* Anket Oluşturma Modal */}
+      {/* Edit Description Modal */}
+      <Modal visible={showEditDescModal} animationType="slide" transparent>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.modalOverlay}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <TouchableOpacity onPress={() => setShowEditDescModal(false)}>
+                <Text style={styles.modalCancel}>İptal</Text>
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Açıklama Düzenle</Text>
+              <TouchableOpacity onPress={handleSaveDescription} disabled={savingDescription}>
+                {savingDescription ? (
+                  <ActivityIndicator size="small" color="#6366f1" />
+                ) : (
+                  <Text style={styles.modalSave}>Kaydet</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.modalBody}>
+              <TextInput
+                style={styles.descriptionInput}
+                placeholder="Grup açıklaması..."
+                placeholderTextColor="#6b7280"
+                value={newDescription}
+                onChangeText={setNewDescription}
+                multiline
+                maxLength={500}
+                textAlignVertical="top"
+              />
+              <Text style={styles.charCount}>{newDescription.length}/500</Text>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Poll Modal */}
       <Modal visible={showPollModal} animationType="slide" transparent>
         <KeyboardAvoidingView
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -469,21 +666,29 @@ export default function GroupMenuScreen() {
           <View style={styles.modalContent}>
             <View style={styles.modalHandle} />
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Yeni Anket</Text>
               <TouchableOpacity onPress={() => setShowPollModal(false)}>
-                <Ionicons name="close" size={24} color="#fff" />
+                <Text style={styles.modalCancel}>İptal</Text>
+              </TouchableOpacity>
+              <Text style={styles.modalTitle}>Yeni Anket</Text>
+              <TouchableOpacity onPress={handleCreatePoll} disabled={creatingPoll}>
+                {creatingPoll ? (
+                  <ActivityIndicator size="small" color="#6366f1" />
+                ) : (
+                  <Text style={styles.modalSave}>Oluştur</Text>
+                )}
               </TouchableOpacity>
             </View>
 
-            <View style={styles.modalBody}>
+            <ScrollView style={styles.modalBody}>
               <TextInput
                 style={styles.pollInput}
-                placeholder="Soru..."
+                placeholder="Sorunuz..."
                 placeholderTextColor="#6b7280"
                 value={pollQuestion}
                 onChangeText={setPollQuestion}
               />
 
+              <Text style={styles.optionsLabel}>Seçenekler</Text>
               {pollOptions.map((option, index) => (
                 <View key={index} style={styles.optionRow}>
                   <TextInput
@@ -499,6 +704,7 @@ export default function GroupMenuScreen() {
                   />
                   {pollOptions.length > 2 && (
                     <TouchableOpacity
+                      style={styles.removeOption}
                       onPress={() => setPollOptions(pollOptions.filter((_, i) => i !== index))}
                     >
                       <Ionicons name="close-circle" size={24} color="#ef4444" />
@@ -507,33 +713,48 @@ export default function GroupMenuScreen() {
                 </View>
               ))}
 
-              {pollOptions.length < 5 && (
+              {pollOptions.length < 6 && (
                 <TouchableOpacity
                   style={styles.addOptionButton}
                   onPress={() => setPollOptions([...pollOptions, ''])}
                 >
-                  <Ionicons name="add" size={20} color="#6366f1" />
+                  <Ionicons name="add-circle-outline" size={20} color="#6366f1" />
                   <Text style={styles.addOptionText}>Seçenek Ekle</Text>
                 </TouchableOpacity>
               )}
-
-              <TouchableOpacity
-                style={[styles.createPollButton, creatingPoll && styles.disabledButton]}
-                onPress={handleCreatePoll}
-                disabled={creatingPoll}
-              >
-                {creatingPoll ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="stats-chart" size={20} color="#fff" />
-                    <Text style={styles.createPollText}>Anket Oluştur</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
+            </ScrollView>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Mute Modal */}
+      <Modal visible={showMuteModal} animationType="slide" transparent>
+        <View style={styles.modalOverlay}>
+          <View style={styles.muteModalContent}>
+            <View style={styles.modalHandle} />
+            <Text style={styles.muteModalTitle}>Bildirimleri Sustur</Text>
+            
+            {['1 saat', '8 saat', '1 gün', '1 hafta', 'Her zaman'].map((duration) => (
+              <TouchableOpacity
+                key={duration}
+                style={styles.muteOption}
+                onPress={() => handleMute(duration)}
+              >
+                <Text style={styles.muteOptionText}>{duration}</Text>
+                {muteUntil === duration && (
+                  <Ionicons name="checkmark" size={22} color="#6366f1" />
+                )}
+              </TouchableOpacity>
+            ))}
+
+            <TouchableOpacity
+              style={styles.muteCancel}
+              onPress={() => setShowMuteModal(false)}
+            >
+              <Text style={styles.muteCancelText}>İptal</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -635,7 +856,7 @@ const styles = StyleSheet.create({
   infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
   },
   memberCountText: {
     color: '#9ca3af',
@@ -644,34 +865,56 @@ const styles = StyleSheet.create({
   communityLink: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 10,
     gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     backgroundColor: 'rgba(99, 102, 241, 0.1)',
-    borderRadius: 16,
+    borderRadius: 20,
   },
   communityLinkText: {
     color: '#6366f1',
     fontSize: 13,
     fontWeight: '500',
   },
-  descriptionContainer: {
-    marginTop: 16,
-    paddingHorizontal: 16,
+
+  // Description Section
+  descriptionSection: {
+    padding: 16,
+    borderBottomWidth: 8,
+    borderBottomColor: '#111827',
+  },
+  descriptionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 10,
+  },
+  descriptionLabel: {
+    flex: 1,
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
   },
   descriptionText: {
-    color: '#d1d5db',
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: 'center',
+    color: '#e5e7eb',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  placeholderText: {
+    color: '#6b7280',
+    fontStyle: 'italic',
   },
   readMoreText: {
     color: '#6366f1',
     fontSize: 14,
     fontWeight: '500',
-    marginTop: 4,
-    textAlign: 'center',
+    marginTop: 6,
+  },
+  createdAt: {
+    color: '#4b5563',
+    fontSize: 12,
+    marginTop: 12,
   },
 
   // Section Styles
@@ -700,23 +943,84 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     color: '#fff',
   },
-  memberCount: {
-    color: '#6b7280',
-    fontSize: 14,
+  badge: {
+    backgroundColor: '#374151',
+    borderRadius: 10,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
     marginLeft: 8,
   },
+  badgeText: {
+    fontSize: 12,
+    color: '#9ca3af',
+    fontWeight: '600',
+  },
   addButton: {
-    width: 36,
-    height: 36,
+    padding: 4,
+  },
+
+  // Media Preview
+  mediaPreviewGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginTop: 4,
+  },
+  mediaPreviewItem: {
+    width: (width - 40) / 3,
+    height: (width - 40) / 3,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  mediaPreviewImage: {
+    width: '100%',
+    height: '100%',
+  },
+  moreOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  moreText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  noMediaText: {
+    color: '#6b7280',
+    fontSize: 14,
+    textAlign: 'center',
+    paddingVertical: 20,
+  },
 
-  // Item List
+  // Settings
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+  },
+  settingLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  settingText: {
+    fontSize: 15,
+    color: '#fff',
+  },
+  settingSubtext: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+
+  // Items
   itemList: {
     gap: 10,
   },
@@ -733,9 +1037,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   pollMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 8,
+  },
+  pollMetaText: {
     color: '#6b7280',
     fontSize: 12,
-    marginTop: 4,
   },
   pinnedCard: {
     backgroundColor: '#111827',
@@ -751,18 +1060,27 @@ const styles = StyleSheet.create({
   pinnedMeta: {
     color: '#6b7280',
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 6,
+  },
+  showAllLink: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  showAllText: {
+    color: '#6366f1',
+    fontSize: 14,
+    fontWeight: '500',
   },
 
-  // Empty State
+  // Empty States
   emptyState: {
     alignItems: 'center',
     paddingVertical: 24,
   },
   emptyIconWrapper: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: '#1f2937',
     justifyContent: 'center',
     alignItems: 'center',
@@ -771,102 +1089,111 @@ const styles = StyleSheet.create({
   emptyText: {
     color: '#9ca3af',
     fontSize: 14,
-  },
-
-  // Members
-  memberList: {
-    gap: 8,
-  },
-  memberCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    padding: 12,
-  },
-  memberAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#1f2937',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  memberAvatarImage: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  memberInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  memberName: {
-    color: '#fff',
-    fontSize: 15,
     fontWeight: '500',
   },
-  adminBadge: {
-    color: '#6366f1',
-    fontSize: 12,
-    marginTop: 2,
+  emptySubtext: {
+    color: '#6b7280',
+    fontSize: 13,
+    marginTop: 4,
   },
-  showAllButton: {
+  emptyStateSmall: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 6,
+    paddingVertical: 16,
+    gap: 8,
   },
-  showAllText: {
-    color: '#6366f1',
+  emptyTextSmall: {
+    color: '#6b7280',
     fontSize: 14,
+  },
+
+  // Members Preview
+  adminPreview: {
+    flexDirection: 'row',
+    gap: 16,
+    paddingTop: 8,
+  },
+  memberPreviewItem: {
+    alignItems: 'center',
+    width: 64,
+  },
+  memberPreviewAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    marginBottom: 6,
+  },
+  memberPreviewAvatarPlaceholder: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  avatarInitial: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  memberPreviewName: {
+    fontSize: 12,
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+  adminLabel: {
+    position: 'absolute',
+    top: 40,
+    right: 4,
+    backgroundColor: '#0a0a0a',
+    borderRadius: 8,
+    padding: 2,
+  },
+  showAllMembersButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  addMemberButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 16,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderRadius: 12,
+  },
+  addMemberText: {
+    color: '#6366f1',
+    fontSize: 15,
     fontWeight: '500',
   },
 
-  // Admin Tools
-  adminToolsList: {
-    gap: 8,
+  // Actions Section
+  actionsSection: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
-  adminToolItem: {
+  actionItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#111827',
-    borderRadius: 12,
-    padding: 14,
+    gap: 12,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2937',
   },
-  adminToolIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  adminToolText: {
-    flex: 1,
-    color: '#fff',
+  actionText: {
     fontSize: 15,
-    marginLeft: 12,
+    fontWeight: '500',
   },
 
-  // Leave Button
-  leaveButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-    borderRadius: 12,
-    padding: 14,
-    gap: 8,
-  },
-  leaveButtonText: {
-    color: '#ef4444',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-
-  // Modal
+  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.8)',
@@ -885,7 +1212,6 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 8,
-    marginBottom: 8,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -897,11 +1223,36 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     color: '#fff',
-    fontSize: 18,
+    fontSize: 17,
+    fontWeight: '600',
+  },
+  modalCancel: {
+    color: '#6b7280',
+    fontSize: 15,
+  },
+  modalSave: {
+    color: '#6366f1',
+    fontSize: 15,
     fontWeight: '600',
   },
   modalBody: {
     padding: 16,
+  },
+  descriptionInput: {
+    backgroundColor: '#111827',
+    borderRadius: 12,
+    padding: 14,
+    color: '#fff',
+    fontSize: 15,
+    minHeight: 120,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  charCount: {
+    color: '#6b7280',
+    fontSize: 12,
+    textAlign: 'right',
+    marginTop: 8,
   },
   pollInput: {
     backgroundColor: '#111827',
@@ -909,9 +1260,17 @@ const styles = StyleSheet.create({
     padding: 14,
     color: '#fff',
     fontSize: 15,
-    marginBottom: 12,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#374151',
+  },
+  optionsLabel: {
+    color: '#9ca3af',
+    fontSize: 13,
+    fontWeight: '500',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   optionRow: {
     flexDirection: 'row',
@@ -929,34 +1288,60 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#374151',
   },
+  removeOption: {
+    padding: 4,
+  },
   addOptionButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     gap: 6,
+    marginTop: 4,
   },
   addOptionText: {
     color: '#6366f1',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '500',
   },
-  createPollButton: {
+
+  // Mute Modal
+  muteModalContent: {
+    backgroundColor: '#1f2937',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingBottom: 20,
+  },
+  muteModalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '600',
+    textAlign: 'center',
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  muteOption: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#8b5cf6',
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 16,
-    gap: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
   },
-  disabledButton: {
-    opacity: 0.6,
-  },
-  createPollText: {
+  muteOptionText: {
     color: '#fff',
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+  },
+  muteCancel: {
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  muteCancelText: {
+    color: '#6366f1',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
