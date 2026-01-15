@@ -98,7 +98,7 @@ export default function CommunityDetailScreen() {
       setCommunity(response.data);
     } catch (error) {
       console.error('Error loading community:', error);
-      Alert.alert('Hata', 'Topluluk yüklenemedi');
+      showToast.error('Hata', 'Topluluk yüklenemedi');
     } finally {
       setLoading(false);
       setRefreshing(false);
