@@ -110,4 +110,8 @@ export const eventApi = {
   unattend: (id: string) => api.post(`/api/events/${id}/unattend`),
 };
 
+export const generalApi = {
+  getCities: () => api.get('/api/cities'),
+};
+
 export default api;
