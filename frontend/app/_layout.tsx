@@ -53,15 +53,19 @@ function AppContent() {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
-      <QueryClientProvider client={queryClient}>
-        <ThemeProvider>
-          <AuthProvider>
-            <ChatSettingsProvider>
-              <AppContent />
-            </ChatSettingsProvider>
-          </AuthProvider>
-        </ThemeProvider>
-      </QueryClientProvider>
+      <ErrorBoundary>
+        <BottomSheetModalProvider>
+          <QueryClientProvider client={queryClient}>
+            <ThemeProvider>
+              <AuthProvider>
+                <ChatSettingsProvider>
+                  <AppContent />
+                </ChatSettingsProvider>
+              </AuthProvider>
+            </ThemeProvider>
+          </QueryClientProvider>
+        </BottomSheetModalProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }
