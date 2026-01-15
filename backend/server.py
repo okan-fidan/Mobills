@@ -1155,11 +1155,14 @@ async def get_posts(current_user: dict = Depends(get_current_user)):
 @api_router.post("/posts")
 async def create_post(post: dict, current_user: dict = Depends(get_current_user)):
     user = await db.users.find_one({"uid": current_user['uid']})
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Kullanıcı bulunamadı. Lütfen profilinizi tamamlayın.")
 
     new_post = {
         "id": str(uuid.uuid4()),
         "userId": current_user['uid'],
-        "userName": f"{user['firstName']} {user['lastName']}",
+        "userName": f"{user.get('firstName', '')} {user.get('lastName', '')}".strip() or "Kullanıcı",
         "userProfileImage": user.get('profileImageUrl'),
         "content": post['content'],
         "imageUrl": post.get('imageUrl'),
