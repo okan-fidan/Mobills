@@ -219,7 +219,14 @@ export default function AdminDashboard() {
                 <Ionicons name={item.icon as any} size={24} color={item.color} />
               </View>
               <View style={styles.menuInfo}>
-                <Text style={styles.menuTitle}>{item.title}</Text>
+                <View style={styles.menuTitleRow}>
+                  <Text style={styles.menuTitle}>{item.title}</Text>
+                  {(item as any).isNew && (
+                    <View style={styles.newBadge}>
+                      <Text style={styles.newBadgeText}>YENİ</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
               </View>
               <Ionicons name={(item as any).external ? "open-outline" : "chevron-forward"} size={22} color="#6b7280" />
