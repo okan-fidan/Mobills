@@ -82,7 +82,7 @@ export default function PrivacySecurityScreen() {
   const toggle2FA = async () => {
     if (!twoFactorEnabled) {
       try {
-        const response = await api.post('/auth/2fa/enable', { method: 'email' });
+        const response = await api.post('/api/auth/2fa/enable', { method: 'email' });
         setPendingCode(response.data.demo_code || '');
         setShow2FAModal(true);
         Alert.alert('Kod Gönderildi', 'Doğrulama kodu bildirimlerinize gönderildi.');
@@ -100,7 +100,7 @@ export default function PrivacySecurityScreen() {
             style: 'destructive',
             onPress: async () => {
               try {
-                await api.post('/auth/2fa/disable', { code: '000000' });
+                await api.post('/api/auth/2fa/disable', { code: '000000' });
                 setTwoFactorEnabled(false);
                 Alert.alert('Başarılı', '2FA devre dışı bırakıldı');
               } catch (error: any) {
@@ -121,7 +121,7 @@ export default function PrivacySecurityScreen() {
 
     setVerifying2FA(true);
     try {
-      await api.post('/auth/2fa/verify', { code: verificationCode });
+      await api.post('/api/auth/2fa/verify', { code: verificationCode });
       setTwoFactorEnabled(true);
       setShow2FAModal(false);
       setVerificationCode('');
