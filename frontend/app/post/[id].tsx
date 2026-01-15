@@ -219,7 +219,21 @@ export default function PostDetailScreen() {
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Gönderi</Text>
-          <View style={{ width: 40 }} />
+          {isOwner ? (
+            <TouchableOpacity 
+              onPress={handleDeletePost} 
+              style={styles.deleteButton}
+              disabled={deleting}
+            >
+              {deleting ? (
+                <ActivityIndicator size="small" color="#ef4444" />
+              ) : (
+                <Ionicons name="trash-outline" size={22} color="#ef4444" />
+              )}
+            </TouchableOpacity>
+          ) : (
+            <View style={{ width: 40 }} />
+          )}
         </View>
 
         <FlatList
