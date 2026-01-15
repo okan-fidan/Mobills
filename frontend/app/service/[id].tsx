@@ -226,10 +226,33 @@ export default function ServiceDetailScreen() {
             </View>
           </View>
 
+          {/* İletişime Geç - Özel Mesaj Başlat */}
+          {service.userId !== user?.uid && (
+            <TouchableOpacity 
+              style={styles.contactButton}
+              onPress={() => router.push(`/chat/${service.userId}`)}
+            >
+              <Ionicons name="chatbubble" size={20} color="#fff" />
+              <Text style={styles.contactButtonText}>Mesaj Gönder</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Randevu Al Butonu */}
+          {service.userId !== user?.uid && (
+            <TouchableOpacity 
+              style={styles.appointmentButton}
+              onPress={() => router.push(`/appointments?userId=${service.userId}`)}
+            >
+              <Ionicons name="calendar" size={20} color="#6366f1" />
+              <Text style={styles.appointmentButtonText}>Randevu Al</Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Telefon ile Ara */}
           {service.contactPhone && (
-            <TouchableOpacity style={styles.contactButton}>
-              <Ionicons name="call" size={20} color="#fff" />
-              <Text style={styles.contactButtonText}>İletişime Geç</Text>
+            <TouchableOpacity style={styles.phoneButton}>
+              <Ionicons name="call" size={20} color="#10b981" />
+              <Text style={styles.phoneButtonText}>{service.contactPhone}</Text>
             </TouchableOpacity>
           )}
         </View>
