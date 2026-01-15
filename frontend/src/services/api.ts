@@ -67,6 +67,18 @@ export const subgroupApi = {
   getPendingRequests: (id: string) => api.get(`/api/subgroups/${id}/pending-requests`),
   approveRequest: (subgroupId: string, userId: string) => api.post(`/api/subgroups/${subgroupId}/approve/${userId}`),
   rejectRequest: (subgroupId: string, userId: string) => api.post(`/api/subgroups/${subgroupId}/reject/${userId}`),
+  // Yeni eklenen fonksiyonlar
+  getMembers: (id: string) => api.get(`/api/subgroups/${id}/members`),
+  deleteMessage: (subgroupId: string, messageId: string) => api.delete(`/api/subgroups/${subgroupId}/messages/${messageId}`),
+  editMessage: (subgroupId: string, messageId: string, data: any) => api.put(`/api/subgroups/${subgroupId}/messages/${messageId}`, data),
+  pinMessage: (subgroupId: string, messageId: string) => api.post(`/api/subgroups/${subgroupId}/messages/${messageId}/pin`),
+  getPinnedMessages: (id: string) => api.get(`/api/subgroups/${id}/pinned-messages`),
+  getPolls: (id: string) => api.get(`/api/subgroups/${id}/polls`),
+  createPoll: (id: string, data: any) => api.post(`/api/subgroups/${id}/polls`, data),
+  votePoll: (subgroupId: string, pollId: string, optionIndex: number) => api.post(`/api/subgroups/${subgroupId}/polls/${pollId}/vote`, { optionIndex }),
+  deletePoll: (subgroupId: string, pollId: string) => api.delete(`/api/subgroups/${subgroupId}/polls/${pollId}`),
+  muteMember: (subgroupId: string, userId: string) => api.post(`/api/subgroups/${subgroupId}/mute/${userId}`),
+  kickMember: (subgroupId: string, userId: string) => api.post(`/api/subgroups/${subgroupId}/kick/${userId}`),
 };
 
 export const subgroupRequestApi = {
