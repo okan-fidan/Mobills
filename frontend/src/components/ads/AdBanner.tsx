@@ -6,62 +6,21 @@ interface AdBannerProps {
   style?: any;
 }
 
-// Web ve Expo Go için placeholder banner
-const PlaceholderBanner: React.FC<AdBannerProps> = ({ style }) => (
-  <View style={[styles.placeholder, style]}>
-    <View style={styles.placeholderContent}>
-      <Text style={styles.placeholderText}>📢 Reklam Alanı</Text>
-      <Text style={styles.placeholderSubtext}>
-        {Platform.OS === 'web' ? 'Web\'de reklam desteklenmiyor' : 'Development build gerekli'}
-      </Text>
-    </View>
-  </View>
-);
-
-// Web'de sadece placeholder göster
-export const AdBanner: React.FC<AdBannerProps> = (props) => {
-  // Web'de native modül yüklenemez
-  if (Platform.OS === 'web') {
-    return <PlaceholderBanner {...props} />;
-  }
-
-  // Native platformlarda dinamik import dene
-  try {
-    // Lazy load - sadece native'de çalışır
-    const MobileAds = require('react-native-google-mobile-ads');
-    const { BannerAd, BannerAdSize, TestIds } = MobileAds;
-
-    const TEST_BANNER_ID = Platform.select({
-      ios: 'ca-app-pub-3940256099942544/2934735716',
-      android: 'ca-app-pub-3940256099942544/6300978111',
-      default: 'ca-app-pub-3940256099942544/6300978111',
-    });
-
-    const adSize = {
-      banner: BannerAdSize.BANNER,
-      largeBanner: BannerAdSize.LARGE_BANNER,
-      mediumRectangle: BannerAdSize.MEDIUM_RECTANGLE,
-      fullBanner: BannerAdSize.FULL_BANNER,
-      leaderboard: BannerAdSize.LEADERBOARD,
-    }[props.size || 'banner'] || BannerAdSize.BANNER;
-
-    return (
-      <View style={[styles.container, props.style]}>
-        <BannerAd
-          unitId={TEST_BANNER_ID}
-          size={adSize}
-          requestOptions={{
-            requestNonPersonalizedAdsOnly: true,
-          }}
-          onAdLoaded={() => console.log('Ad loaded')}
-          onAdFailedToLoad={(error: any) => console.log('Ad failed:', error)}
-        />
+// Expo Go ve Web için placeholder banner
+// Gerçek AdMob reklamları sadece EAS build ile çalışır
+export const AdBanner: React.FC<AdBannerProps> = ({ style }) => {
+  return (
+    <View style={[styles.placeholder, style]}>
+      <View style={styles.placeholderContent}>
+        <Text style={styles.placeholderText}>📢 Reklam Alanı</Text>
+        <Text style={styles.placeholderSubtext}>
+          {Platform.OS === 'web' 
+            ? 'Web\'de reklam desteklenmiyor' 
+            : 'EAS Build ile aktif olacak'}
+        </Text>
       </View>
-    );
-  } catch (error) {
-    // Expo Go'da modül yüklenemez - placeholder göster
-    return <PlaceholderBanner {...props} />;
-  }
+    </View>
+  );
 };
 
 // Sabit yükseklikli banner wrapper
@@ -77,11 +36,6 @@ export const FixedBannerAd: React.FC<{ position?: 'top' | 'bottom' }> = ({ posit
 };
 
 const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#1a1a2e',
-  },
   placeholder: {
     height: 60,
     backgroundColor: '#1f2937',
