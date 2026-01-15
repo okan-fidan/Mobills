@@ -229,6 +229,65 @@ export default function CommunityDetailScreen() {
     );
   };
 
+  // Topluluk fotoğrafı değiştir
+  const handleChangeCommunityImage = async () => {
+    if (!isAdmin) return;
+    
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('İzin Gerekli', 'Fotoğraf seçmek için galeri izni gerekiyor.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      setUploadingImage(true);
+      try {
+        await api.put(`/api/communities/${id}/image`, {
+          imageData: result.assets[0].base64,
+        });
+        Alert.alert('Başarılı', 'Topluluk fotoğrafı güncellendi');
+        loadCommunity();
+      } catch (error) {
+        Alert.alert('Hata', 'Fotoğraf yüklenemedi');
+      } finally {
+        setUploadingImage(false);
+      }
+    }
+  };
+
+  // Topluluktan ayrıl
+  const handleLeaveCommunity = async () => {
+    Alert.alert(
+      'Topluluktan Ayrıl',
+      'Bu topluluktan ayrılmak istediğinize emin misiniz?',
+      [
+        { text: 'İptal', style: 'cancel' },
+        {
+          text: 'Ayrıl',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await communityApi.leave(community!.id);
+              Alert.alert('Başarılı', 'Topluluktan ayrıldınız');
+              setShowSettingsModal(false);
+              router.back();
+            } catch (error) {
+              Alert.alert('Hata', 'Ayrılma işlemi başarısız');
+            }
+          },
+        },
+      ]
+    );
+  };
+
   // Alt grup kart durumunu render et
   const renderSubgroupStatus = (subgroup: SubGroup) => {
     if (joiningSubgroup === subgroup.id) {
