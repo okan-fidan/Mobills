@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const registerProfile = async (data: any) => {
-    const response = await api.post('/api/register-profile', data);
+    const response = await api.post('/api/user/register', data);
     setUserProfile(response.data);
   };
 
