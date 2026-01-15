@@ -7,8 +7,10 @@ import {
   TouchableOpacity,
   ScrollView,
   Image,
-  Alert,
   ActivityIndicator,
+  Modal,
+  FlatList,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -18,6 +20,19 @@ import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { storage } from '../../src/config/firebase';
 import { userApi } from '../../src/services/api';
 import { useAuth } from '../../src/contexts/AuthContext';
+import { showToast } from '../../src/components/ui';
+
+// Türkiye şehirleri
+const TURKISH_CITIES = [
+  'Adana', 'Adıyaman', 'Afyonkarahisar', 'Ağrı', 'Aksaray', 'Amasya', 'Ankara', 'Antalya', 'Ardahan', 'Artvin',
+  'Aydın', 'Balıkesir', 'Bartın', 'Batman', 'Bayburt', 'Bilecik', 'Bingöl', 'Bitlis', 'Bolu', 'Burdur',
+  'Bursa', 'Çanakkale', 'Çankırı', 'Çorum', 'Denizli', 'Diyarbakır', 'Düzce', 'Edirne', 'Elazığ', 'Erzincan',
+  'Erzurum', 'Eskişehir', 'Gaziantep', 'Giresun', 'Gümüşhane', 'Hakkari', 'Hatay', 'Iğdır', 'Isparta', 'İstanbul',
+  'İzmir', 'Kahramanmaraş', 'Karabük', 'Karaman', 'Kars', 'Kastamonu', 'Kayseri', 'Kırıkkale', 'Kırklareli', 'Kırşehir',
+  'Kilis', 'Kocaeli', 'Konya', 'Kütahya', 'Malatya', 'Manisa', 'Mardin', 'Mersin', 'Muğla', 'Muş',
+  'Nevşehir', 'Niğde', 'Ordu', 'Osmaniye', 'Rize', 'Sakarya', 'Samsun', 'Siirt', 'Sinop', 'Sivas',
+  'Şanlıurfa', 'Şırnak', 'Tekirdağ', 'Tokat', 'Trabzon', 'Tunceli', 'Uşak', 'Van', 'Yalova', 'Yozgat', 'Zonguldak'
+];
 
 export default function EditProfileScreen() {
   const { userProfile, refreshProfile, user } = useAuth();
@@ -27,14 +42,23 @@ export default function EditProfileScreen() {
   const [lastName, setLastName] = useState(userProfile?.lastName || '');
   const [phone, setPhone] = useState(userProfile?.phone || '');
   const [occupation, setOccupation] = useState(userProfile?.occupation || '');
+  const [city, setCity] = useState(userProfile?.city || '');
   const [profileImage, setProfileImage] = useState(userProfile?.profileImageUrl || '');
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showCityPicker, setShowCityPicker] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
+
+  const filteredCities = citySearch
+    ? TURKISH_CITIES.filter(c => 
+        c.toLowerCase().includes(citySearch.toLowerCase())
+      )
+    : TURKISH_CITIES;
 
   const pickImage = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
-      Alert.alert('İzin Gerekli', 'Fotoğraf seçmek için galeri izni gerekiyor.');
+      showToast.error('İzin Gerekli', 'Fotoğraf seçmek için galeri izni gerekiyor.');
       return;
     }
 
@@ -64,9 +88,10 @@ export default function EditProfileScreen() {
       const downloadURL = await getDownloadURL(storageRef);
       
       setProfileImage(downloadURL);
+      showToast.success('Başarılı', 'Fotoğraf yüklendi');
     } catch (error) {
       console.error('Error uploading image:', error);
-      Alert.alert('Hata', 'Fotoğraf yüklenemedi');
+      showToast.error('Hata', 'Fotoğraf yüklenemedi');
     } finally {
       setUploadingImage(false);
     }
@@ -74,7 +99,12 @@ export default function EditProfileScreen() {
 
   const handleSave = async () => {
     if (!firstName.trim() || !lastName.trim()) {
-      Alert.alert('Hata', 'Ad ve soyad zorunludur');
+      showToast.error('Hata', 'Ad ve soyad zorunludur');
+      return;
+    }
+
+    if (!city) {
+      showToast.error('Hata', 'Lütfen şehir seçin');
       return;
     }
 
@@ -85,19 +115,99 @@ export default function EditProfileScreen() {
         lastName: lastName.trim(),
         phone: phone.trim(),
         occupation: occupation.trim(),
+        city: city,
         profileImageUrl: profileImage,
       });
       
       await refreshProfile();
-      Alert.alert('Başarılı', 'Profil güncellendi');
+      showToast.success('Başarılı', 'Profil güncellendi');
       router.back();
     } catch (error) {
       console.error('Error updating profile:', error);
-      Alert.alert('Hata', 'Profil güncellenemedi');
+      showToast.error('Hata', 'Profil güncellenemedi');
     } finally {
       setSaving(false);
     }
   };
+
+  const CityPickerModal = () => (
+    <Modal
+      visible={showCityPicker}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setShowCityPicker(false)}
+    >
+      <View style={styles.modalOverlay}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Şehir Seçin</Text>
+            <TouchableOpacity onPress={() => setShowCityPicker(false)}>
+              <Ionicons name="close" size={24} color="#fff" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Arama */}
+          <View style={styles.searchContainer}>
+            <Ionicons name="search" size={20} color="#9ca3af" />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Şehir ara..."
+              placeholderTextColor="#6b7280"
+              value={citySearch}
+              onChangeText={setCitySearch}
+              autoFocus
+            />
+            {citySearch.length > 0 && (
+              <TouchableOpacity onPress={() => setCitySearch('')}>
+                <Ionicons name="close-circle" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {/* Şehir Listesi */}
+          <FlatList
+            data={filteredCities}
+            keyExtractor={(item) => item}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={[
+                  styles.cityItem,
+                  city === item && styles.cityItemSelected
+                ]}
+                onPress={() => {
+                  setCity(item);
+                  setShowCityPicker(false);
+                  setCitySearch('');
+                }}
+              >
+                <Ionicons 
+                  name="location" 
+                  size={20} 
+                  color={city === item ? '#6366f1' : '#6b7280'} 
+                />
+                <Text style={[
+                  styles.cityItemText,
+                  city === item && styles.cityItemTextSelected
+                ]}>
+                  {item}
+                </Text>
+                {city === item && (
+                  <Ionicons name="checkmark-circle" size={22} color="#6366f1" />
+                )}
+              </TouchableOpacity>
+            )}
+            showsVerticalScrollIndicator={false}
+            ListEmptyComponent={
+              <View style={styles.emptyList}>
+                <Ionicons name="search-outline" size={40} color="#374151" />
+                <Text style={styles.emptyText}>Şehir bulunamadı</Text>
+              </View>
+            }
+          />
+        </View>
+      </View>
+    </Modal>
+  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -115,7 +225,7 @@ export default function EditProfileScreen() {
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Profile Image */}
         <View style={styles.imageSection}>
           <TouchableOpacity style={styles.imageContainer} onPress={pickImage} disabled={uploadingImage}>
@@ -172,6 +282,21 @@ export default function EditProfileScreen() {
           </View>
 
           <View style={styles.inputGroup}>
+            <Text style={styles.label}>Şehir *</Text>
+            <TouchableOpacity
+              style={styles.citySelector}
+              onPress={() => setShowCityPicker(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="location-outline" size={20} color="#9ca3af" />
+              <Text style={[styles.citySelectorText, !city && styles.placeholder]}>
+                {city || 'Şehir Seçin'}
+              </Text>
+              <Ionicons name="chevron-down" size={20} color="#6b7280" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.inputGroup}>
             <Text style={styles.label}>Meslek / Sektör</Text>
             <TextInput
               style={styles.input}
@@ -183,21 +308,16 @@ export default function EditProfileScreen() {
           </View>
 
           <View style={styles.inputGroup}>
-            <Text style={styles.label}>Şehir</Text>
-            <View style={styles.disabledInput}>
-              <Text style={styles.disabledText}>{userProfile?.city || 'Belirtilmemiş'}</Text>
-            </View>
-            <Text style={styles.hint}>Şehir kayıt sırasında belirlenir ve değiştirilemez</Text>
-          </View>
-
-          <View style={styles.inputGroup}>
             <Text style={styles.label}>E-posta</Text>
             <View style={styles.disabledInput}>
               <Text style={styles.disabledText}>{userProfile?.email}</Text>
             </View>
+            <Text style={styles.hint}>E-posta adresi değiştirilemez</Text>
           </View>
         </View>
       </ScrollView>
+
+      <CityPickerModal />
     </SafeAreaView>
   );
 }
@@ -221,4 +341,91 @@ const styles = StyleSheet.create({
   disabledInput: { backgroundColor: '#111827', borderRadius: 12, padding: 16, borderWidth: 1, borderColor: '#1f2937' },
   disabledText: { color: '#6b7280', fontSize: 16 },
   hint: { color: '#6b7280', fontSize: 12, marginTop: 6 },
+  citySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1f2937',
+    borderRadius: 12,
+    padding: 16,
+    gap: 12,
+  },
+  citySelectorText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+  },
+  placeholder: {
+    color: '#6b7280',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.8)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#1f2937',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '80%',
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#111827',
+    margin: 16,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 48,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+  },
+  cityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#374151',
+  },
+  cityItemSelected: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+  },
+  cityItemText: {
+    flex: 1,
+    color: '#fff',
+    fontSize: 16,
+  },
+  cityItemTextSelected: {
+    color: '#6366f1',
+    fontWeight: '600',
+  },
+  emptyList: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    color: '#6b7280',
+    fontSize: 16,
+    marginTop: 12,
+  },
 });
