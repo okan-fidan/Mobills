@@ -31,7 +31,7 @@ function AppContent() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
-      <OfflineBanner />
+      {Platform.OS !== 'web' && <OfflineBanner />}
       <Stack
         screenOptions={{
           headerShown: false,
