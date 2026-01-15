@@ -93,7 +93,7 @@ export default function AdminContentScreen() {
     setLoadingMessages(true);
 
     try {
-      const response = await api.get(`/subgroups/${subgroup.id}/messages`);
+      const response = await api.get(`/api/subgroups/${subgroup.id}/messages`);
       setMessages(response.data.reverse());
     } catch (error) {
       console.error('Error loading messages:', error);
@@ -108,7 +108,7 @@ export default function AdminContentScreen() {
       Alert.alert('Başarılı', response.data.message);
       // Refresh messages
       if (selectedSubgroup) {
-        const messagesRes = await api.get(`/subgroups/${selectedSubgroup.id}/messages`);
+        const messagesRes = await api.get(`/api/subgroups/${selectedSubgroup.id}/messages`);
         setMessages(messagesRes.data.reverse());
       }
     } catch (error: any) {
@@ -130,7 +130,7 @@ export default function AdminContentScreen() {
               await api.delete(`/admin/messages/${messageId}`);
               Alert.alert('Başarılı', 'Mesaj silindi');
               if (selectedSubgroup) {
-                const messagesRes = await api.get(`/subgroups/${selectedSubgroup.id}/messages`);
+                const messagesRes = await api.get(`/api/subgroups/${selectedSubgroup.id}/messages`);
                 setMessages(messagesRes.data.reverse());
               }
             } catch (error: any) {
