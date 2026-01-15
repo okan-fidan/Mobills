@@ -215,6 +215,7 @@ async def get_cities():
     return {"cities": TURKISH_CITIES}
 
 @api_router.post("/user/register")
+@api_router.post("/register-profile")  # Alias for backward compatibility
 async def register_user(user_data: dict, current_user: dict = Depends(get_current_user)):
     existing_user = await db.users.find_one({"uid": current_user['uid']})
     if existing_user:
