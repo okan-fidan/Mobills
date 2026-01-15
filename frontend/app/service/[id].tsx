@@ -128,7 +128,7 @@ export default function ServiceDetailScreen() {
 
   const handleToggleHelpful = async (reviewId: string) => {
     try {
-      const res = await api.post(`/reviews/${reviewId}/helpful`);
+      const res = await api.post(`/api/reviews/${reviewId}/helpful`);
       setReviews(reviews.map(r =>
         r.id === reviewId
           ? { ...r, isHelpful: res.data.helpful, helpfulCount: res.data.count }
