@@ -1072,9 +1072,23 @@ export default function GroupChatScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <View style={styles.groupIcon}>
-          <Ionicons name="chatbubbles" size={20} color="#6366f1" />
-        </View>
+        <TouchableOpacity 
+          onPress={isGroupAdmin ? () => setShowGroupSettings(true) : undefined}
+          disabled={!isGroupAdmin}
+        >
+          {subgroup?.imageUrl ? (
+            <Image source={{ uri: subgroup.imageUrl }} style={styles.groupImageSmall} />
+          ) : (
+            <View style={styles.groupIcon}>
+              <Ionicons name="chatbubbles" size={20} color="#6366f1" />
+            </View>
+          )}
+          {isGroupAdmin && (
+            <View style={styles.editBadgeSmall}>
+              <Ionicons name="camera" size={10} color="#fff" />
+            </View>
+          )}
+        </TouchableOpacity>
         <TouchableOpacity 
           style={styles.headerInfo}
           onPress={() => router.push(`/chat/group/menu/${groupId}`)}
@@ -1086,11 +1100,101 @@ export default function GroupChatScreen() {
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.menuButton}
-          onPress={() => router.push(`/chat/group/menu/${groupId}`)}
+          onPress={() => setShowGroupSettings(true)}
         >
           <Ionicons name="ellipsis-vertical" size={24} color="#fff" />
         </TouchableOpacity>
       </View>
+
+      {/* Group Settings Modal */}
+      <Modal visible={showGroupSettings} animationType="slide" transparent>
+        <View style={styles.settingsOverlay}>
+          <View style={styles.settingsContent}>
+            <View style={styles.settingsHeader}>
+              <Text style={styles.settingsTitle}>Grup Ayarları</Text>
+              <TouchableOpacity onPress={() => setShowGroupSettings(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.settingsBody}>
+              {/* Grup profil resmi */}
+              <TouchableOpacity 
+                style={styles.groupProfileSection}
+                onPress={isGroupAdmin ? handleChangeGroupImage : undefined}
+                disabled={!isGroupAdmin || uploadingGroupImage}
+              >
+                {subgroup?.imageUrl ? (
+                  <Image source={{ uri: subgroup.imageUrl }} style={styles.groupImageLarge} />
+                ) : (
+                  <View style={styles.groupIconLarge}>
+                    <Ionicons name="chatbubbles" size={40} color="#6366f1" />
+                  </View>
+                )}
+                {isGroupAdmin && (
+                  <View style={styles.editBadgeLarge}>
+                    {uploadingGroupImage ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Ionicons name="camera" size={16} color="#fff" />
+                    )}
+                  </View>
+                )}
+              </TouchableOpacity>
+              <Text style={styles.groupNameSettings}>{subgroup?.name}</Text>
+              <Text style={styles.groupMemberCount}>{subgroup?.memberCount} üye</Text>
+
+              {/* Profil Resmi Değiştir */}
+              {isGroupAdmin && (
+                <TouchableOpacity 
+                  style={styles.settingsOption}
+                  onPress={handleChangeGroupImage}
+                  disabled={uploadingGroupImage}
+                >
+                  <View style={[styles.settingsIconWrapper, { backgroundColor: 'rgba(99, 102, 241, 0.1)' }]}>
+                    <Ionicons name="camera" size={24} color="#6366f1" />
+                  </View>
+                  <View style={styles.settingsOptionInfo}>
+                    <Text style={styles.settingsOptionTitle}>Profil Fotoğrafı Değiştir</Text>
+                    <Text style={styles.settingsOptionSubtitle}>Grup resmini güncelle</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+                </TouchableOpacity>
+              )}
+
+              {/* Grup Bilgisi */}
+              <TouchableOpacity 
+                style={styles.settingsOption}
+                onPress={() => {
+                  setShowGroupSettings(false);
+                  router.push(`/chat/group/menu/${groupId}`);
+                }}
+              >
+                <View style={[styles.settingsIconWrapper, { backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>
+                  <Ionicons name="information-circle" size={24} color="#10b981" />
+                </View>
+                <View style={styles.settingsOptionInfo}>
+                  <Text style={styles.settingsOptionTitle}>Grup Bilgisi</Text>
+                  <Text style={styles.settingsOptionSubtitle}>Üyeleri ve detayları görüntüle</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+              </TouchableOpacity>
+
+              {/* Bildirimler */}
+              <TouchableOpacity style={styles.settingsOption}>
+                <View style={[styles.settingsIconWrapper, { backgroundColor: 'rgba(245, 158, 11, 0.1)' }]}>
+                  <Ionicons name="notifications" size={24} color="#f59e0b" />
+                </View>
+                <View style={styles.settingsOptionInfo}>
+                  <Text style={styles.settingsOptionTitle}>Bildirimler</Text>
+                  <Text style={styles.settingsOptionSubtitle}>Grup bildirimlerini yönet</Text>
+                </View>
+                <Ionicons name="chevron-forward" size={20} color="#6b7280" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Messages */}
       <KeyboardAvoidingView
