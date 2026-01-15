@@ -250,7 +250,7 @@ export default function GroupChatScreen() {
     
     setLoadingSmartReplies(true);
     try {
-      const response = await api.post('/ai/smart-replies', {
+      const response = await api.post('/api/ai/smart-replies', {
         messageContent,
         conversationType: 'group',
       });
