@@ -92,6 +92,7 @@ export const userApi = {
   getPrivacySettings: () => api.get('/api/user/privacy-settings'),
   updatePrivacySettings: (data: any) => api.put('/api/user/privacy-settings', data),
   savePushToken: (token: string) => api.post('/api/user/push-token', { token }),
+  register: (data: any) => api.post('/api/register-profile', data),
 };
 
 export const userListApi = {
