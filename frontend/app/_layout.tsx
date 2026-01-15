@@ -31,6 +31,7 @@ function AppContent() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
+      <OfflineBanner />
       <Stack
         screenOptions={{
           headerShown: false,
@@ -44,6 +45,7 @@ function AppContent() {
         onLater={handleLater}
         onDismiss={handleDismiss}
       />
+      <ToastProvider />
     </>
   );
 }
