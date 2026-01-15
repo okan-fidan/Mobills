@@ -83,7 +83,9 @@ export default function CommunityDetailScreen() {
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [announcementText, setAnnouncementText] = useState('');
   const [sendingAnnouncement, setSendingAnnouncement] = useState(false);
-  const { userProfile } = useAuth();
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const { userProfile, user } = useAuth();
   const router = useRouter();
 
   const isAdmin = community?.isSuperAdmin || userProfile?.isAdmin;
