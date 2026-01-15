@@ -141,6 +141,9 @@ export default function ServicesScreen() {
         </View>
       </View>
 
+      {/* AdMob Banner */}
+      <AdBanner style={{ marginVertical: 8 }} />
+
       <FlatList
         data={services}
         renderItem={renderService}
