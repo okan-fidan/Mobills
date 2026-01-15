@@ -6,10 +6,10 @@ import { ChatSettingsProvider } from '../src/contexts/ChatSettingsContext';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Platform } from 'react-native';
 import RatingPrompt from '../src/components/RatingPrompt';
 import { useAppRating } from '../src/hooks/useAppRating';
-import { ToastProvider, ErrorBoundary, OfflineBanner, BottomSheetModalProvider } from '../src/components/ui';
+import { ToastProvider, ErrorBoundary, OfflineBanner } from '../src/components/ui';
 
 const queryClient = new QueryClient();
 
