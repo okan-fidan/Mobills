@@ -514,60 +514,6 @@ export default function CommunityDetailScreen() {
           )}
         </View>
 
-        {/* Announcements Section */}
-        <View style={styles.announcementsSection}>
-          <View style={styles.announcementHeader}>
-            <Ionicons name="megaphone" size={24} color="#f59e0b" />
-            <Text style={styles.sectionTitle}>Duyurular</Text>
-            {isAdmin && (
-              <TouchableOpacity 
-                style={styles.addAnnouncementBtn}
-                onPress={() => setShowAnnouncementModal(true)}
-              >
-                <Ionicons name="add-circle" size={28} color="#f59e0b" />
-              </TouchableOpacity>
-            )}
-          </View>
-          
-          {!community.isMember && (
-            <View style={styles.guestNotice}>
-              <Ionicons name="information-circle" size={18} color="#6b7280" />
-              <Text style={styles.guestNoticeText}>
-                Sadece son 5 duyuruyu görüntülüyorsunuz. Tümünü görmek için topluluğa katılın.
-              </Text>
-            </View>
-          )}
-
-          {announcements.length > 0 ? (
-            announcements.map((announcement) => (
-              <View key={announcement.id} style={styles.announcementCard}>
-                <View style={styles.announcementMeta}>
-                  <Text style={styles.announcementSender}>{announcement.senderName}</Text>
-                  <View style={styles.announcementActions}>
-                    <Text style={styles.announcementTime}>
-                      {formatDate(announcement.timestamp)}
-                    </Text>
-                    {isAdmin && (
-                      <TouchableOpacity 
-                        onPress={() => handleDeleteAnnouncement(announcement.id)}
-                        style={styles.deleteAnnouncementBtn}
-                      >
-                        <Ionicons name="trash-outline" size={18} color="#ef4444" />
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                </View>
-                <Text style={styles.announcementContent}>{announcement.content}</Text>
-              </View>
-            ))
-          ) : (
-            <View style={styles.emptyAnnouncements}>
-              <Ionicons name="megaphone-outline" size={40} color="#374151" />
-              <Text style={styles.emptyText}>Henüz duyuru yok</Text>
-            </View>
-          )}
-        </View>
-
         {/* Bottom padding */}
         <View style={{ height: 40 }} />
       </ScrollView>
