@@ -54,17 +54,15 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.container}>
       <ErrorBoundary>
-        <BottomSheetModalProvider>
-          <QueryClientProvider client={queryClient}>
-            <ThemeProvider>
-              <AuthProvider>
-                <ChatSettingsProvider>
-                  <AppContent />
-                </ChatSettingsProvider>
-              </AuthProvider>
-            </ThemeProvider>
-          </QueryClientProvider>
-        </BottomSheetModalProvider>
+        <QueryClientProvider client={queryClient}>
+          <ThemeProvider>
+            <AuthProvider>
+              <ChatSettingsProvider>
+                <AppContent />
+              </ChatSettingsProvider>
+            </AuthProvider>
+          </ThemeProvider>
+        </QueryClientProvider>
       </ErrorBoundary>
     </GestureHandlerRootView>
   );
