@@ -221,7 +221,7 @@ export default function PostDetailScreen() {
             <Ionicons name="arrow-back" size={24} color="#fff" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Gönderi</Text>
-          {isOwner ? (
+          {canDelete ? (
             <TouchableOpacity 
               onPress={handleDeletePost} 
               style={styles.deleteButton}
