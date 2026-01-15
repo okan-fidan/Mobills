@@ -110,21 +110,25 @@ export default function EditProfileScreen() {
 
     setSaving(true);
     try {
-      await userApi.updateProfile({
+      const updateData = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
         phone: phone.trim(),
         occupation: occupation.trim(),
         city: city,
         profileImageUrl: profileImage,
-      });
+      };
+      
+      console.log('Updating profile with:', updateData);
+      
+      await api.put('/api/user/profile', updateData);
       
       await refreshProfile();
       showToast.success('Başarılı', 'Profil güncellendi');
       router.back();
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      showToast.error('Hata', 'Profil güncellenemedi');
+    } catch (error: any) {
+      console.error('Error updating profile:', error?.response?.data || error?.message || error);
+      showToast.error('Hata', error?.response?.data?.detail || 'Profil güncellenemedi');
     } finally {
       setSaving(false);
     }
