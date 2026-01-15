@@ -55,6 +55,7 @@ export const communityApi = {
   createAnnouncement: (id: string, data: any) => api.post(`/api/communities/${id}/announcements`, data),
   deleteAnnouncement: (communityId: string, announcementId: string) => api.delete(`/api/communities/${communityId}/announcements/${announcementId}`),
   getSubgroups: (id: string) => api.get(`/api/communities/${id}/subgroups`),
+  sendAnnouncement: (id: string, data: any) => api.post(`/api/communities/${id}/announcements`, data),
 };
 
 export const subgroupApi = {
