@@ -465,15 +465,7 @@ export default function HomeScreen() {
         </View>
         <TouchableOpacity 
           style={styles.moreButton}
-          onPress={() => Alert.alert(
-            'Gönderi Seçenekleri',
-            '',
-            [
-              { text: 'Bildir', onPress: () => Alert.alert('Bilgi', 'Gönderi bildirildi') },
-              { text: 'Gizle', onPress: () => Alert.alert('Bilgi', 'Gönderi gizlendi') },
-              { text: 'İptal', style: 'cancel' },
-            ]
-          )}
+          onPress={() => showPostOptions(item)}
         >
           <Ionicons name="ellipsis-horizontal" size={20} color="#6b7280" />
         </TouchableOpacity>
