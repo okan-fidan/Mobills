@@ -53,18 +53,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(firebaseUser);
       if (firebaseUser) {
         try {
-          const response = await userApi.getProfile();
+          const response = await api.get('/api/user/profile');
           setUserProfile(response.data);
           
           // Push notification kaydı (sadece mobil cihazlarda)
           if (Platform.OS !== 'web') {
-            const pushToken = await registerForPushNotificationsAsync();
-            if (pushToken) {
-              await savePushToken(pushToken);
+            try {
+              const pushToken = await registerForPushNotificationsAsync();
+              if (pushToken) {
+                await savePushToken(pushToken);
+              }
+            } catch (pushError) {
+              // Push notification hatası uygulamayı durdurmamalı
+              console.log('Push notification setup skipped');
             }
           }
-        } catch (error) {
-          console.error('Error fetching profile:', error);
+        } catch (error: any) {
+          // 404 = yeni kullanıcı, kayıt gerekiyor
+          if (error?.response?.status === 404) {
+            setUserProfile({ needsRegistration: true } as any);
+          } else {
+            console.log('Profile fetch error (may be new user)');
+          }
         }
       } else {
         setUserProfile(null);
