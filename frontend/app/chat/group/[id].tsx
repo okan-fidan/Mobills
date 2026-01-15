@@ -139,6 +139,44 @@ export default function GroupChatScreen() {
 
   const isGroupAdmin = subgroup?.groupAdmins?.includes(user?.uid || '') || false;
 
+  // Grup profil resmi değiştir
+  const handleChangeGroupImage = async () => {
+    if (!isGroupAdmin) {
+      Alert.alert('Yetki Gerekli', 'Sadece grup yöneticileri profil resmini değiştirebilir.');
+      return;
+    }
+    
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('İzin Gerekli', 'Fotoğraf seçmek için galeri izni gerekiyor.');
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+      base64: true,
+    });
+
+    if (!result.canceled && result.assets[0].base64) {
+      setUploadingGroupImage(true);
+      try {
+        await api.put(`/api/subgroups/${groupId}/image`, {
+          imageData: result.assets[0].base64,
+        });
+        Alert.alert('Başarılı', 'Grup fotoğrafı güncellendi');
+        setShowGroupSettings(false);
+        loadData();
+      } catch (error) {
+        Alert.alert('Hata', 'Fotoğraf yüklenemedi');
+      } finally {
+        setUploadingGroupImage(false);
+      }
+    }
+  };
+
   // Filtrelenmiş üye listesi (@mention için)
   const filteredMembers = groupMembers.filter(member => {
     const fullName = `${member.firstName} ${member.lastName}`.toLowerCase();
