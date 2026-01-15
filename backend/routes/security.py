@@ -43,6 +43,18 @@ def setup_security_routes(db, get_current_user):
     
     # ==================== 2FA (İki Faktörlü Doğrulama) ====================
     
+    @security_router.get("/2fa/status")
+    async def get_2fa_status(current_user: dict = Depends(get_current_user)):
+        """2FA durumunu kontrol et"""
+        user = await db.users.find_one({"uid": current_user['uid']})
+        if not user:
+            return {"enabled": False, "pending": False}
+        
+        return {
+            "enabled": user.get('twoFactorEnabled', False),
+            "pending": user.get('twoFactorPending', False)
+        }
+    
     @security_router.post("/2fa/setup")
     async def setup_2fa(current_user: dict = Depends(get_current_user)):
         """2FA kurulumu başlat - QR kod ve secret key döndür"""
