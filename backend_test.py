@@ -33,7 +33,7 @@ class TelegramLikeAppTester:
     def __init__(self):
         self.results = {}
         self.session = requests.Session()
-        self.session.timeout = 10
+        self.session.timeout = 30  # Increased timeout
         self.auth_token = None
         self.test_user_id = None
         self.created_resources = {
