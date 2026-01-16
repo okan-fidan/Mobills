@@ -26,19 +26,338 @@ TEST_USER = {
     "lastName": "Kullanıcı"
 }
 
-class NetworkSolutionAPITester:
+class NetworkSolutionComprehensiveTester:
     def __init__(self):
-        self.results = {
-            "health_check": {"status": "pending", "details": ""},
-            "cities_endpoint": {"status": "pending", "details": ""},
-            "communities_endpoint": {"status": "pending", "details": ""},
-            "admin_dashboard": {"status": "pending", "details": ""},
-            "admin_users": {"status": "pending", "details": ""},
-            "admin_communities": {"status": "pending", "details": ""},
-            "server_connectivity": {"status": "pending", "details": ""}
-        }
+        self.results = {}
         self.session = requests.Session()
         self.session.timeout = 10
+        self.auth_token = None
+        self.test_user_id = None
+        self.created_resources = {
+            "posts": [],
+            "services": [],
+            "communities": [],
+            "messages": []
+        }
+        
+    def log_result(self, test_name: str, success: bool, details: str = "", error: str = ""):
+        """Log test result with Turkish format"""
+        status = "✅ BAŞARILI" if success else "❌ BAŞARISIZ"
+        self.results[test_name] = {
+            "status": status,
+            "success": success,
+            "details": details,
+            "error": error,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        print(f"{status}: {test_name}")
+        if details:
+            print(f"   Detay: {details}")
+        if error:
+            print(f"   Hata: {error}")
+        print()
+        
+    def test_server_connectivity(self):
+        """Test 1: Server Connectivity"""
+        try:
+            response = self.session.get(BACKEND_URL, timeout=5)
+            if response.status_code in [200, 404, 405]:
+                self.log_result("Sunucu Bağlantısı", True, f"Sunucu yanıt veriyor (status: {response.status_code})")
+                return True
+            else:
+                self.log_result("Sunucu Bağlantısı", False, "", f"Beklenmeyen status kodu: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Sunucu Bağlantısı", False, "", str(e))
+            return False
+
+    def test_health_check_api(self):
+        """Test 2: Health Check API Endpoint"""
+        try:
+            response = self.session.get(f"{API_BASE}/")
+            if response.status_code == 200:
+                data = response.json()
+                if data.get("message") == "Network Solution API":
+                    self.log_result("Health Check API", True, f"Doğru yanıt: {data}")
+                    return True
+                else:
+                    self.log_result("Health Check API", False, "", f"Yanlış mesaj: {data}")
+                    return False
+            else:
+                self.log_result("Health Check API", False, "", f"HTTP {response.status_code}: {response.text}")
+                return False
+        except Exception as e:
+            self.log_result("Health Check API", False, "", str(e))
+            return False
+
+    def test_cities_api(self):
+        """Test 3: Cities API"""
+        try:
+            response = self.session.get(f"{API_BASE}/cities")
+            if response.status_code == 200:
+                data = response.json()
+                cities = data.get("cities", [])
+                if len(cities) == 81 and "İstanbul" in cities and "Ankara" in cities:
+                    self.log_result("Şehirler API", True, f"81 şehir döndü: İstanbul, Ankara dahil")
+                    return True
+                else:
+                    self.log_result("Şehirler API", False, "", f"Beklenen 81 şehir bulunamadı. Dönen: {len(cities)}")
+                    return False
+            else:
+                self.log_result("Şehirler API", False, "", f"HTTP {response.status_code}: {response.text}")
+                return False
+        except Exception as e:
+            self.log_result("Şehirler API", False, "", str(e))
+            return False
+
+    def test_authentication_protection(self):
+        """Test 4: Authentication Protection"""
+        protected_endpoints = [
+            ("/communities", "Topluluklar"),
+            ("/posts", "Gönderiler"),
+            ("/services", "Hizmetler"),
+            ("/notifications", "Bildirimler"),
+            ("/user/profile", "Kullanıcı Profili"),
+            ("/chats", "Sohbetler")
+        ]
+        
+        all_protected = True
+        for endpoint, name in protected_endpoints:
+            try:
+                response = self.session.get(f"{API_BASE}{endpoint}")
+                if response.status_code in [401, 403, 422]:
+                    self.log_result(f"{name} Koruması", True, f"Doğru şekilde korunuyor (status: {response.status_code})")
+                else:
+                    self.log_result(f"{name} Koruması", False, "", f"Korunmuyor! Status: {response.status_code}")
+                    all_protected = False
+            except Exception as e:
+                self.log_result(f"{name} Koruması", False, "", str(e))
+                all_protected = False
+        
+        return all_protected
+
+    def test_admin_endpoints_protection(self):
+        """Test 5: Admin Endpoints Protection"""
+        admin_endpoints = [
+            ("/admin/dashboard", "Admin Dashboard"),
+            ("/admin/users", "Admin Kullanıcılar"),
+            ("/admin/communities", "Admin Topluluklar")
+        ]
+        
+        all_protected = True
+        for endpoint, name in admin_endpoints:
+            try:
+                response = self.session.get(f"{API_BASE}{endpoint}")
+                if response.status_code in [401, 403, 422]:
+                    self.log_result(f"{name} Koruması", True, f"Doğru şekilde korunuyor (status: {response.status_code})")
+                else:
+                    self.log_result(f"{name} Koruması", False, "", f"Korunmuyor! Status: {response.status_code}")
+                    all_protected = False
+            except Exception as e:
+                self.log_result(f"{name} Koruması", False, "", str(e))
+                all_protected = False
+        
+        return all_protected
+
+    def test_user_registration_mock(self):
+        """Test 6: User Registration (Mock Firebase Token)"""
+        try:
+            # Since we can't create real Firebase tokens, we test the endpoint structure
+            headers = {"Authorization": "Bearer mock_firebase_token"}
+            user_data = {
+                "email": TEST_USER["email"],
+                "firstName": TEST_USER["firstName"],
+                "lastName": TEST_USER["lastName"],
+                "city": "İstanbul",
+                "occupation": "Test Engineer"
+            }
+            
+            response = self.session.post(f"{API_BASE}/user/register", json=user_data, headers=headers)
+            
+            if response.status_code == 401:
+                self.log_result("Kullanıcı Kaydı", True, "Firebase authentication sistemi aktif - 401 Unauthorized")
+                return True
+            elif response.status_code == 200:
+                # If somehow it works (maybe with mock token)
+                data = response.json()
+                self.log_result("Kullanıcı Kaydı", True, f"Kullanıcı oluşturuldu: {data.get('firstName')} {data.get('lastName')}")
+                return True
+            else:
+                self.log_result("Kullanıcı Kaydı", False, "", f"HTTP {response.status_code}: {response.text}")
+                return False
+        except Exception as e:
+            self.log_result("Kullanıcı Kaydı", False, "", str(e))
+            return False
+
+    def test_profile_endpoints_structure(self):
+        """Test 7: Profile Endpoints Structure"""
+        profile_endpoints = [
+            ("/user/profile", "GET", "Profil Görüntüleme"),
+            ("/user/privacy-settings", "GET", "Gizlilik Ayarları"),
+            ("/user/is-admin", "GET", "Admin Kontrolü")
+        ]
+        
+        all_structured = True
+        for endpoint, method, name in profile_endpoints:
+            try:
+                if method == "GET":
+                    response = self.session.get(f"{API_BASE}{endpoint}")
+                
+                if response.status_code in [401, 403, 422]:
+                    self.log_result(f"{name} Yapısı", True, f"Endpoint mevcut ve korunuyor (status: {response.status_code})")
+                elif response.status_code == 200:
+                    self.log_result(f"{name} Yapısı", True, f"Endpoint çalışıyor (status: {response.status_code})")
+                else:
+                    self.log_result(f"{name} Yapısı", False, "", f"Beklenmeyen status: {response.status_code}")
+                    all_structured = False
+            except Exception as e:
+                self.log_result(f"{name} Yapısı", False, "", str(e))
+                all_structured = False
+        
+        return all_structured
+
+    def test_communities_structure(self):
+        """Test 8: Communities API Structure"""
+        try:
+            # Test communities list endpoint
+            response = self.session.get(f"{API_BASE}/communities")
+            if response.status_code in [401, 403, 422]:
+                self.log_result("Topluluklar API Yapısı", True, f"Endpoint mevcut ve korunuyor (status: {response.status_code})")
+                return True
+            else:
+                self.log_result("Topluluklar API Yapısı", False, "", f"Beklenmeyen status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Topluluklar API Yapısı", False, "", str(e))
+            return False
+
+    def test_messaging_structure(self):
+        """Test 9: Messaging API Structure"""
+        messaging_endpoints = [
+            ("/chats", "Sohbet Listesi"),
+            ("/private-messages", "Özel Mesajlar")
+        ]
+        
+        all_structured = True
+        for endpoint, name in messaging_endpoints:
+            try:
+                response = self.session.get(f"{API_BASE}{endpoint}")
+                if response.status_code in [401, 403, 422]:
+                    self.log_result(f"{name} API Yapısı", True, f"Endpoint mevcut ve korunuyor (status: {response.status_code})")
+                else:
+                    self.log_result(f"{name} API Yapısı", False, "", f"Beklenmeyen status: {response.status_code}")
+                    all_structured = False
+            except Exception as e:
+                self.log_result(f"{name} API Yapısı", False, "", str(e))
+                all_structured = False
+        
+        return all_structured
+
+    def test_posts_structure(self):
+        """Test 10: Posts API Structure"""
+        try:
+            response = self.session.get(f"{API_BASE}/posts")
+            if response.status_code in [401, 403, 422]:
+                self.log_result("Gönderiler API Yapısı", True, f"Endpoint mevcut ve korunuyor (status: {response.status_code})")
+                return True
+            else:
+                self.log_result("Gönderiler API Yapısı", False, "", f"Beklenmeyen status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Gönderiler API Yapısı", False, "", str(e))
+            return False
+
+    def test_services_structure(self):
+        """Test 11: Services API Structure"""
+        try:
+            response = self.session.get(f"{API_BASE}/services")
+            if response.status_code in [401, 403, 422]:
+                self.log_result("Hizmetler API Yapısı", True, f"Endpoint mevcut ve korunuyor (status: {response.status_code})")
+                return True
+            else:
+                self.log_result("Hizmetler API Yapısı", False, "", f"Beklenmeyen status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Hizmetler API Yapısı", False, "", str(e))
+            return False
+
+    def test_notifications_structure(self):
+        """Test 12: Notifications API Structure"""
+        try:
+            response = self.session.get(f"{API_BASE}/notifications")
+            if response.status_code in [401, 403, 422]:
+                self.log_result("Bildirimler API Yapısı", True, f"Endpoint mevcut ve korunuyor (status: {response.status_code})")
+                return True
+            else:
+                self.log_result("Bildirimler API Yapısı", False, "", f"Beklenmeyen status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Bildirimler API Yapısı", False, "", str(e))
+            return False
+
+    def test_feedback_structure(self):
+        """Test 13: Feedback API Structure"""
+        try:
+            # Test feedback submission endpoint
+            headers = {"Authorization": "Bearer mock_firebase_token"}
+            feedback_data = {
+                "type": "bug",
+                "subject": "Test Feedback",
+                "message": "Test message",
+                "rating": 5
+            }
+            response = self.session.post(f"{API_BASE}/feedback", json=feedback_data, headers=headers)
+            
+            if response.status_code in [401, 403, 422]:
+                self.log_result("Geri Bildirim API Yapısı", True, f"Endpoint mevcut ve korunuyor (status: {response.status_code})")
+                return True
+            elif response.status_code == 200:
+                self.log_result("Geri Bildirim API Yapısı", True, f"Endpoint çalışıyor (status: {response.status_code})")
+                return True
+            else:
+                self.log_result("Geri Bildirim API Yapısı", False, "", f"Beklenmeyen status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Geri Bildirim API Yapısı", False, "", str(e))
+            return False
+
+    def test_users_list_structure(self):
+        """Test 14: Users List API Structure"""
+        try:
+            response = self.session.get(f"{API_BASE}/users")
+            if response.status_code in [401, 403, 422]:
+                self.log_result("Kullanıcılar Listesi API Yapısı", True, f"Endpoint mevcut ve korunuyor (status: {response.status_code})")
+                return True
+            else:
+                self.log_result("Kullanıcılar Listesi API Yapısı", False, "", f"Beklenmeyen status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Kullanıcılar Listesi API Yapısı", False, "", str(e))
+            return False
+
+    def test_media_upload_structure(self):
+        """Test 15: Media Upload API Structure"""
+        try:
+            headers = {"Authorization": "Bearer mock_firebase_token"}
+            media_data = {
+                "data": "base64_test_data",
+                "type": "image"
+            }
+            response = self.session.post(f"{API_BASE}/upload/media", json=media_data, headers=headers)
+            
+            if response.status_code in [401, 403, 422]:
+                self.log_result("Medya Yükleme API Yapısı", True, f"Endpoint mevcut ve korunuyor (status: {response.status_code})")
+                return True
+            elif response.status_code == 200:
+                self.log_result("Medya Yükleme API Yapısı", True, f"Endpoint çalışıyor (status: {response.status_code})")
+                return True
+            else:
+                self.log_result("Medya Yükleme API Yapısı", False, "", f"Beklenmeyen status: {response.status_code}")
+                return False
+        except Exception as e:
+            self.log_result("Medya Yükleme API Yapısı", False, "", str(e))
+            return False
         
     def test_server_connectivity(self):
         """Test basic server connectivity"""
