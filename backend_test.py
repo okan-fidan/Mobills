@@ -80,20 +80,29 @@ class TelegramLikeAppTester:
         
         try:
             if method.upper() == 'GET':
-                response = self.session.get(url, headers=default_headers)
+                response = self.session.get(url, headers=default_headers, timeout=30)
             elif method.upper() == 'POST':
-                response = self.session.post(url, json=data, headers=default_headers)
+                response = self.session.post(url, json=data, headers=default_headers, timeout=30)
             elif method.upper() == 'PUT':
-                response = self.session.put(url, json=data, headers=default_headers)
+                response = self.session.put(url, json=data, headers=default_headers, timeout=30)
             elif method.upper() == 'DELETE':
-                response = self.session.delete(url, headers=default_headers)
+                response = self.session.delete(url, headers=default_headers, timeout=30)
             else:
                 raise ValueError(f"Unsupported HTTP method: {method}")
                 
             return response
             
+        except requests.exceptions.Timeout:
+            print(f"Request timeout for {method} {url}")
+            return None
+        except requests.exceptions.ConnectionError:
+            print(f"Connection error for {method} {url}")
+            return None
         except requests.exceptions.RequestException as e:
-            print(f"Request failed: {str(e)}")
+            print(f"Request failed for {method} {url}: {str(e)}")
+            return None
+        except Exception as e:
+            print(f"Unexpected error for {method} {url}: {str(e)}")
             return None
     
     def test_basic_connectivity(self):
