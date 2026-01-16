@@ -25,9 +25,13 @@ const api = axios.create({
 api.interceptors.request.use(async (config) => {
   try {
     const user = auth.currentUser;
+    console.log('API Request - User:', user?.email || 'No user', 'URL:', config.url);
     if (user) {
-      const token = await user.getIdToken();
+      const token = await user.getIdToken(true); // Force refresh token
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('Token added to request');
+    } else {
+      console.warn('No authenticated user for API request:', config.url);
     }
   } catch (error) {
     console.error('Error getting auth token:', error);
