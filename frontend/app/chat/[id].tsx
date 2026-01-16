@@ -589,8 +589,8 @@ export default function PrivateChatScreen() {
 
         {/* Input */}
         <View style={styles.inputContainer}>
-          <TouchableOpacity style={styles.attachButton} onPress={pickImage} disabled={uploadingImage}>
-            {uploadingImage ? (
+          <TouchableOpacity style={styles.attachButton} onPress={pickImage} disabled={uploadingMedia}>
+            {uploadingMedia ? (
               <ActivityIndicator size="small" color="#6366f1" />
             ) : (
               <Ionicons name="image-outline" size={26} color="#6b7280" />
