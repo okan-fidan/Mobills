@@ -25,6 +25,9 @@ export default function LoginScreen() {
   const router = useRouter();
 
   const handleLogin = async () => {
+    console.log('=== handleLogin called ===');
+    console.log('Email:', email, 'Password length:', password?.length);
+    
     if (!email || !password) {
       Alert.alert('Hata', 'Lütfen email ve şifrenizi girin');
       return;
@@ -32,8 +35,11 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
+      console.log('Calling signIn...');
       await signIn(email, password);
+      console.log('signIn successful, navigating to tabs...');
       router.replace('/(tabs)');
+      console.log('Navigation called');
     } catch (error: any) {
       console.error('Login error:', error);
       let message = 'Giriş yapılamadı';
